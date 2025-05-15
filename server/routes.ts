@@ -1,6 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import fetch from 'node-fetch';
 import { 
   parseSceneRequestSchema, 
   imagePromptRequestSchema, 
@@ -16,17 +17,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const data = parseSceneRequestSchema.parse(req.body);
       
-      // This is a POC, so we're just returning mock data
-      // In a real application, this would interface with an LLM or service
-      const scenes = Array.from({ length: data.scene_count }, (_, i) => ({
-        id: i + 1,
-        text: `Scene ${i + 1} derived from the synopsis: "${data.synopsis.substring(0, 30)}..."`,
-        order: i + 1
-      }));
+      // 실제 Dify API를 사용하여 씬을 분할합니다
+      const response = await fetch('https://dify.slowcampus.kr/v1/workflows/run', {
+        method: 'POST',
+        headers: {
+          'Authorization': 'Bearer app-twgpaqfPDJR2XU3qnjy6Q9LM',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          inputs: {
+            synopsis: data.synopsis,
+            scene_count: data.scene_count
+          },
+          response_mode: "streaming",
+          user: "user-" + Math.random().toString(36).substring(2, 10)
+        })
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Dify API error: ${errorText}`);
+      }
+      
+      const difyData = await response.json() as { text: string };
+      
+      // Dify API 응답의 text 필드에서 JSON 문자열 파싱
+      const scenes = JSON.parse(difyData.text);
       
       res.json(scenes);
-    } catch (error) {
-      res.status(400).json({ message: "Invalid request data" });
+    } catch (error: any) {
+      console.error("Scene parsing error:", error);
+      res.status(500).json({ message: "Failed to parse scenes: " + (error.message || 'Unknown error') });
     }
   });
 
@@ -69,7 +90,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       ];
       
       // Choose 3 random images
-      const randomIndices = [];
+      const randomIndices: number[] = [];
       while (randomIndices.length < 3) {
         const randomIndex = Math.floor(Math.random() * movieImages.length);
         if (!randomIndices.includes(randomIndex)) {
