@@ -281,7 +281,7 @@ const SynopsisView: React.FC = () => {
   }
   
   // Generate video prompt for a scene
-  const generateVideoPrompt = (sceneId: number) => {
+  const generateVideoPrompt = async (sceneId: number) => {
     const scene = scenes.find(s => s.id === sceneId)
     if (!scene || !scene.selectedImage) return
     
@@ -292,21 +292,46 @@ const SynopsisView: React.FC = () => {
       )
     )
     
-    // Mock API call
-    setTimeout(() => {
-      const randomIndex = Math.floor(Math.random() * videoPrompts.length)
+    try {
+      // 실제 API 호출
+      const response = await fetch('/api/describe-image', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          image_url: scene.selectedImage
+        })
+      })
+      
+      if (!response.ok) {
+        throw new Error('영상 프롬프트 생성 중 오류가 발생했습니다.')
+      }
+      
+      const data = await response.json()
       
       setScenes(prevScenes => 
         prevScenes.map(s => 
           s.id === sceneId ? { 
             ...s, 
-            videoPrompt: videoPrompts[randomIndex],
-            negativePrompt: negativePrompts[randomIndex],
+            videoPrompt: data.video_prompt,
+            negativePrompt: data.negative_prompt,
             loadingVideoPrompt: false 
           } : s
         )
       )
-    }, 1200)
+    } catch (error) {
+      console.error('영상 프롬프트 생성 중 오류:', error)
+      
+      // 오류 발생 시 로딩 상태 해제
+      setScenes(prevScenes => 
+        prevScenes.map(s => 
+          s.id === sceneId ? { ...s, loadingVideoPrompt: false } : s
+        )
+      )
+      
+      alert('영상 프롬프트 생성 중 오류가 발생했습니다.')
+    }
   }
   
   // Download JSON output

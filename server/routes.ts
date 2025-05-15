@@ -18,7 +18,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const data = parseSceneRequestSchema.parse(req.body);
       
       // 실제 Dify API를 사용하여 씬을 분할합니다
-      const response = await fetch('https://dify.slowcampus.kr/v1', {
+      const response = await fetch('https://dify.slowcampus.kr/v1/workflows/run', {
         method: 'POST',
         headers: {
           'Authorization': 'Bearer app-twgpaqfPDJR2XU3qnjy6Q9LM',
@@ -76,7 +76,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Generate images from prompt
-  app.post('/api/generate-image', async (req, res) => {
+  app.post('/api/generate-images', async (req, res) => {
     try {
       const data = generateImageRequestSchema.parse(req.body);
       
