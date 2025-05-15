@@ -18,7 +18,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const data = parseSceneRequestSchema.parse(req.body);
       
       // 실제 Dify API를 사용하여 씬을 분할합니다
-      const response = await fetch('https://dify.slowcampus.kr/v1/workflows/run', {
+      const response = await fetch('https://dify.slowcampus.kr/v1', {
         method: 'POST',
         headers: {
           'Authorization': 'Bearer app-twgpaqfPDJR2XU3qnjy6Q9LM',
@@ -29,7 +29,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             synopsis: data.synopsis,
             scene_count: data.scene_count
           },
-          response_mode: "streaming",
+          // 스트리밍 대신 blocking 모드 사용
+          response_mode: "blocking",
           user: "user-" + Math.random().toString(36).substring(2, 10)
         })
       });
