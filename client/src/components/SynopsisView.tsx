@@ -10,7 +10,46 @@ interface Scene {
   selectedImage?: string | null
   videoPrompt?: string
   negativePrompt?: string
+  loadingImagePrompt?: boolean
+  loadingImages?: boolean
+  loadingVideoPrompt?: boolean
 }
+
+// Mock data arrays for demo purposes
+const sceneStarters = [
+  "주인공이 어두운 숲속에서 길을 잃고 방황하고 있다.",
+  "도시의 번화가에서 주인공은 수상한 남자를 발견한다.",
+  "해변가에서 주인공은 바다에 떠다니는 이상한 물체를 발견한다.",
+  "어두운 골목에서 주인공은 쫓기고 있다.",
+  "고요한 호수가에서 주인공은 물에 반사된 이상한 형체를 본다.",
+  "높은 빌딩 옥상에서 주인공은 도시를 내려다보고 있다.",
+  "방치된 창고에서 주인공은 비밀 문서를 발견한다.",
+  "비가 내리는 거리에서 주인공은 우산을 쓴 낯선 인물을 마주친다.",
+  "눈 덮인 산속에서 주인공은 발자국을 따라가고 있다.",
+  "혼잡한 기차역에서 주인공은 중요한 가방을 놓치게 된다."
+]
+
+const movieImages = [
+  "https://images.unsplash.com/photo-1516214104703-d870798883c5?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&h=600", // Forest
+  "https://images.unsplash.com/photo-1620332372374-f108c53d2e03?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&h=600", // City night
+  "https://images.unsplash.com/photo-1590523278191-995cbcda646b?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&h=600", // Beach
+  "https://images.unsplash.com/photo-1483653364400-eedcfb9f1f88?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&h=600" // Dark alley
+]
+
+const styleDescriptors = [
+  "cinematic lighting, detailed, high definition, 8K",
+  "dramatic composition, movie still, professional photography"
+]
+
+const videoPrompts = [
+  "A cinematic sequence showing the scene with dramatic lighting and atmosphere. Camera slowly moves from left to right, revealing the scene details. Depth of field effect with background slightly blurred.",
+  "High-definition video capture of the scene. Camera starts with a wide establishing shot and gradually zooms in on the main subject. Natural lighting with golden hour warm tones."
+]
+
+const negativePrompts = [
+  "low quality, blurry, distorted, pixelated, low resolution, oversaturated, amateur footage, shaky camera, out of focus, poor lighting",
+  "text overlay, watermarks, logos, timestamps, jerky movement, digital artifacts, noise, grain, dust, scratches, stains"
+]
 
 const SynopsisView: React.FC = () => {
   const [step, setStep] = useState<'input' | 'processing' | 'scenes'>('input')
@@ -46,8 +85,17 @@ const SynopsisView: React.FC = () => {
       setTimeout(() => {
         const mockScenes = Array.from({ length: sceneCount }, (_, i) => ({
           id: i + 1,
-          text: `Scene ${i + 1}: Mock scene description for testing.`,
-          order: i + 1
+          text: sceneStarters[i % sceneStarters.length],
+          order: i + 1,
+          imagePrompt: '',
+          images: [],
+          selectedImageIndex: null,
+          selectedImage: null,
+          videoPrompt: '',
+          negativePrompt: '',
+          loadingImagePrompt: false,
+          loadingImages: false,
+          loadingVideoPrompt: false
         }))
         
         setScenes(mockScenes)
@@ -57,12 +105,189 @@ const SynopsisView: React.FC = () => {
     }
   }
   
+  // Update scene text
+  const updateSceneText = (sceneId: number, newText: string) => {
+    setScenes(prevScenes => 
+      prevScenes.map(scene => 
+        scene.id === sceneId ? { ...scene, text: newText } : scene
+      )
+    )
+  }
+  
+  // Generate image prompt for a scene
+  const generateImagePrompt = (sceneId: number) => {
+    // Set loading state
+    setScenes(prevScenes => 
+      prevScenes.map(scene => 
+        scene.id === sceneId ? { ...scene, loadingImagePrompt: true } : scene
+      )
+    )
+    
+    // Mock API call
+    setTimeout(() => {
+      const scene = scenes.find(s => s.id === sceneId)
+      if (!scene) return
+      
+      const randomStyle = styleDescriptors[Math.floor(Math.random() * styleDescriptors.length)]
+      const prompt = `${scene.text} ${randomStyle}`
+      
+      setScenes(prevScenes => 
+        prevScenes.map(scene => 
+          scene.id === sceneId ? { 
+            ...scene, 
+            imagePrompt: prompt,
+            loadingImagePrompt: false 
+          } : scene
+        )
+      )
+    }, 1000)
+  }
+  
+  // Generate images for a scene
+  const generateImages = (sceneId: number) => {
+    const scene = scenes.find(s => s.id === sceneId)
+    if (!scene || !scene.imagePrompt) return
+    
+    // Set loading state
+    setScenes(prevScenes => 
+      prevScenes.map(s => 
+        s.id === sceneId ? { ...s, loadingImages: true } : s
+      )
+    )
+    
+    // Mock API call
+    setTimeout(() => {
+      // Get 3 random images
+      const randomIndices: number[] = []
+      while (randomIndices.length < 3) {
+        const randomIndex = Math.floor(Math.random() * movieImages.length)
+        if (!randomIndices.includes(randomIndex)) {
+          randomIndices.push(randomIndex)
+        }
+      }
+      
+      const images = randomIndices.map(index => movieImages[index])
+      
+      setScenes(prevScenes => 
+        prevScenes.map(s => 
+          s.id === sceneId ? { 
+            ...s, 
+            images,
+            loadingImages: false 
+          } : s
+        )
+      )
+    }, 1500)
+  }
+  
+  // Select an image for a scene
+  const selectImage = (sceneId: number, imageIndex: number) => {
+    const scene = scenes.find(s => s.id === sceneId)
+    if (!scene || !scene.images || imageIndex >= scene.images.length) return
+    
+    const selectedImage = scene.images[imageIndex]
+    
+    setScenes(prevScenes => 
+      prevScenes.map(s => 
+        s.id === sceneId ? { 
+          ...s, 
+          selectedImageIndex: imageIndex,
+          selectedImage
+        } : s
+      )
+    )
+  }
+  
+  // Generate video prompt for a scene
+  const generateVideoPrompt = (sceneId: number) => {
+    const scene = scenes.find(s => s.id === sceneId)
+    if (!scene || !scene.selectedImage) return
+    
+    // Set loading state
+    setScenes(prevScenes => 
+      prevScenes.map(s => 
+        s.id === sceneId ? { ...s, loadingVideoPrompt: true } : s
+      )
+    )
+    
+    // Mock API call
+    setTimeout(() => {
+      const randomIndex = Math.floor(Math.random() * videoPrompts.length)
+      
+      setScenes(prevScenes => 
+        prevScenes.map(s => 
+          s.id === sceneId ? { 
+            ...s, 
+            videoPrompt: videoPrompts[randomIndex],
+            negativePrompt: negativePrompts[randomIndex],
+            loadingVideoPrompt: false 
+          } : s
+        )
+      )
+    }, 1200)
+  }
+  
+  // Download JSON output
+  const downloadJSON = () => {
+    const completedScenes = scenes.filter(scene => scene.videoPrompt)
+    if (completedScenes.length === 0) return
+    
+    const output = completedScenes.map(scene => ({
+      scene_id: scene.id,
+      scene_text: scene.text,
+      image_prompt: scene.imagePrompt || '',
+      selected_image: scene.selectedImage || '',
+      video_prompt: scene.videoPrompt || '',
+      negative_prompt: scene.negativePrompt || ''
+    }))
+    
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(output, null, 2))
+    const downloadAnchorNode = document.createElement('a')
+    downloadAnchorNode.setAttribute("href", dataStr)
+    downloadAnchorNode.setAttribute("download", "video_prompts.json")
+    document.body.appendChild(downloadAnchorNode)
+    downloadAnchorNode.click()
+    downloadAnchorNode.remove()
+  }
+  
+  // Move scene navigation
+  const moveToScene = (index: number) => {
+    if (index >= 0 && index < scenes.length) {
+      setActiveSceneIndex(index)
+    }
+  }
+  
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
-      {/* Header */}
+      {/* Header with Progress Bar */}
       <header className="bg-white shadow-sm sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <h1 className="text-xl font-bold text-gray-800">시놉시스 기반 영상 제작 자동화</h1>
+          <div className="flex justify-between items-center">
+            <h1 className="text-xl font-bold text-gray-800">시놉시스 기반 영상 제작 자동화</h1>
+            
+            {step === 'scenes' && (
+              <div className="flex items-center space-x-4">
+                <span className="text-sm text-gray-600">진행률: {getProgressPercentage()}%</span>
+                <div className="w-32 bg-gray-200 rounded-full h-2.5">
+                  <div 
+                    className="bg-blue-600 h-2.5 rounded-full" 
+                    style={{ width: `${getProgressPercentage()}%` }}
+                  ></div>
+                </div>
+                <button 
+                  onClick={downloadJSON}
+                  disabled={!scenes.some(s => s.videoPrompt)}
+                  className={`px-3 py-1 rounded-md text-sm font-medium text-white ${
+                    scenes.some(s => s.videoPrompt) 
+                      ? 'bg-blue-600 hover:bg-blue-700' 
+                      : 'bg-gray-300 cursor-not-allowed'
+                  }`}
+                >
+                  JSON 다운로드
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </header>
       
@@ -80,7 +305,7 @@ const SynopsisView: React.FC = () => {
                     id="synopsis" 
                     value={synopsis}
                     onChange={(e) => setSynopsis(e.target.value)}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 p-3 h-40 border"
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-3 h-40 border"
                     placeholder="영상으로 만들고 싶은 이야기를 자유롭게 입력해주세요. (예: 소년이 숲속에서 신비한 생명체를 만나게 되고...)"
                   ></textarea>
                 </div>
@@ -134,30 +359,198 @@ const SynopsisView: React.FC = () => {
             </section>
           )}
           
-          {/* Scenes Display - Will be implemented later */}
+          {/* Scenes View with Navigation */}
           {step === 'scenes' && (
-            <section className="bg-white rounded-lg shadow-md p-6 mb-8">
-              <h2 className="text-lg font-semibold mb-4">생성된 씬</h2>
-              <div className="grid gap-4">
-                {scenes.map((scene) => (
-                  <div key={scene.id} className="border rounded-md p-4">
-                    <h3 className="font-medium">씬 {scene.order}</h3>
-                    <p className="text-gray-700 mt-1">{scene.text}</p>
-                  </div>
-                ))}
-              </div>
-              <div className="mt-6 flex justify-between">
-                <button 
-                  onClick={() => setStep('input')}
-                  className="text-blue-600 hover:text-blue-800"
-                >
-                  ← 시놉시스로 돌아가기
-                </button>
-                <div className="text-gray-500">
-                  진행률: {getProgressPercentage()}%
+            <div className="space-y-6">
+              {/* Scene Navigation */}
+              <div className="bg-white rounded-lg shadow-md p-4">
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-lg font-semibold">씬 편집</h2>
+                  <button 
+                    onClick={() => setStep('input')}
+                    className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                  >
+                    <svg className="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                    </svg>
+                    시놉시스로 돌아가기
+                  </button>
+                </div>
+                
+                <div className="flex overflow-x-auto space-x-2 pb-2">
+                  {scenes.map((scene, index) => (
+                    <div 
+                      key={scene.id}
+                      onClick={() => setActiveSceneIndex(index)}
+                      className={`flex-shrink-0 cursor-pointer p-3 rounded-md border ${
+                        activeSceneIndex === index 
+                          ? 'border-blue-500 bg-blue-50' 
+                          : 'border-gray-200 hover:bg-gray-50'
+                      }`}
+                    >
+                      <div className="w-24 flex flex-col items-center">
+                        <div className="font-medium text-gray-700 mb-1">씬 {index + 1}</div>
+                        <div className="flex mt-1">
+                          <span className={`w-2 h-2 rounded-full ${scene.imagePrompt ? 'bg-green-500' : 'bg-gray-300'} mx-0.5`}></span>
+                          <span className={`w-2 h-2 rounded-full ${scene.images?.length ? 'bg-green-500' : 'bg-gray-300'} mx-0.5`}></span>
+                          <span className={`w-2 h-2 rounded-full ${scene.selectedImage ? 'bg-green-500' : 'bg-gray-300'} mx-0.5`}></span>
+                          <span className={`w-2 h-2 rounded-full ${scene.videoPrompt ? 'bg-green-500' : 'bg-gray-300'} mx-0.5`}></span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
-            </section>
+              
+              {/* Active Scene Card */}
+              {activeSceneIndex !== null && scenes[activeSceneIndex] && (
+                <div className="bg-white rounded-lg shadow-md p-6">
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-lg font-medium">씬 {activeSceneIndex + 1}</h3>
+                    <div className="flex space-x-2">
+                      <button 
+                        onClick={() => moveToScene(activeSceneIndex - 1)}
+                        disabled={activeSceneIndex === 0}
+                        className={`p-1 rounded ${activeSceneIndex === 0 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-600 hover:bg-gray-100'}`}
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                        </svg>
+                      </button>
+                      <button 
+                        onClick={() => moveToScene(activeSceneIndex + 1)}
+                        disabled={activeSceneIndex === scenes.length - 1}
+                        className={`p-1 rounded ${activeSceneIndex === scenes.length - 1 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-600 hover:bg-gray-100'}`}
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                  
+                  {/* Scene Text Editor */}
+                  <div className="mb-6">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">씬 내용</label>
+                    <textarea 
+                      value={scenes[activeSceneIndex].text} 
+                      onChange={(e) => updateSceneText(scenes[activeSceneIndex].id, e.target.value)}
+                      className="w-full border border-gray-300 rounded-md shadow-sm px-4 py-2 h-24 focus:border-blue-500 focus:ring-blue-500"
+                    ></textarea>
+                  </div>
+                  
+                  {/* Workflow Steps */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Step 1: Image Prompt */}
+                    <div className="border border-gray-200 rounded-md p-4">
+                      <div className="flex justify-between items-center mb-3">
+                        <h4 className="font-medium text-gray-800">1. 이미지 프롬프트</h4>
+                        <button 
+                          onClick={() => generateImagePrompt(scenes[activeSceneIndex].id)}
+                          disabled={!scenes[activeSceneIndex].text.trim() || scenes[activeSceneIndex].loadingImagePrompt}
+                          className={`px-2 py-1 rounded-md text-xs font-medium ${
+                            !scenes[activeSceneIndex].text.trim() || scenes[activeSceneIndex].loadingImagePrompt 
+                              ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
+                              : 'bg-blue-600 text-white hover:bg-blue-700'
+                          }`}
+                        >
+                          {scenes[activeSceneIndex].loadingImagePrompt ? '생성중...' : '생성하기'}
+                        </button>
+                      </div>
+                      
+                      {/* Prompt Display */}
+                      {scenes[activeSceneIndex].imagePrompt && (
+                        <div className="bg-gray-50 p-3 rounded-md">
+                          <p className="text-sm text-gray-700 font-mono">{scenes[activeSceneIndex].imagePrompt}</p>
+                        </div>
+                      )}
+                    </div>
+                    
+                    {/* Step 2: Generate & Select Images */}
+                    <div className="border border-gray-200 rounded-md p-4">
+                      <div className="flex justify-between items-center mb-3">
+                        <h4 className="font-medium text-gray-800">2. 이미지 생성 및 선택</h4>
+                        <button 
+                          onClick={() => generateImages(scenes[activeSceneIndex].id)}
+                          disabled={!scenes[activeSceneIndex].imagePrompt || scenes[activeSceneIndex].loadingImages}
+                          className={`px-2 py-1 rounded-md text-xs font-medium ${
+                            !scenes[activeSceneIndex].imagePrompt || scenes[activeSceneIndex].loadingImages 
+                              ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
+                              : 'bg-blue-600 text-white hover:bg-blue-700'
+                          }`}
+                        >
+                          {scenes[activeSceneIndex].loadingImages ? '생성중...' : '이미지 생성'}
+                        </button>
+                      </div>
+                      
+                      {/* Images Display */}
+                      {scenes[activeSceneIndex].images && scenes[activeSceneIndex].images.length > 0 && (
+                        <div className="grid grid-cols-3 gap-2">
+                          {scenes[activeSceneIndex].images.map((image, idx) => (
+                            <div 
+                              key={idx}
+                              onClick={() => selectImage(scenes[activeSceneIndex].id, idx)}
+                              className={`relative cursor-pointer rounded-md overflow-hidden ${
+                                scenes[activeSceneIndex].selectedImageIndex === idx ? 'ring-2 ring-blue-500 ring-offset-2' : ''
+                              }`}
+                            >
+                              <img 
+                                src={image} 
+                                alt={`Scene ${activeSceneIndex + 1} option ${idx + 1}`} 
+                                className="w-full h-24 object-cover"
+                              />
+                              {scenes[activeSceneIndex].selectedImageIndex === idx && (
+                                <div className="absolute top-1 right-1 bg-blue-500 rounded-full w-5 h-5 flex items-center justify-center">
+                                  <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                  </svg>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    
+                    {/* Step 3: Video Prompt Generation */}
+                    <div className="border border-gray-200 rounded-md p-4 md:col-span-2">
+                      <div className="flex justify-between items-center mb-3">
+                        <h4 className="font-medium text-gray-800">3. 영상 프롬프트 생성</h4>
+                        <button 
+                          onClick={() => generateVideoPrompt(scenes[activeSceneIndex].id)}
+                          disabled={!scenes[activeSceneIndex].selectedImage || scenes[activeSceneIndex].loadingVideoPrompt}
+                          className={`px-2 py-1 rounded-md text-xs font-medium ${
+                            !scenes[activeSceneIndex].selectedImage || scenes[activeSceneIndex].loadingVideoPrompt 
+                              ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
+                              : 'bg-blue-600 text-white hover:bg-blue-700'
+                          }`}
+                        >
+                          {scenes[activeSceneIndex].loadingVideoPrompt ? '생성중...' : '프롬프트 생성'}
+                        </button>
+                      </div>
+                      
+                      {/* Video Prompt Display */}
+                      {scenes[activeSceneIndex].videoPrompt && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">영상 프롬프트</label>
+                            <div className="bg-gray-50 p-3 rounded-md h-32 overflow-y-auto">
+                              <p className="text-sm text-gray-700 font-mono">{scenes[activeSceneIndex].videoPrompt}</p>
+                            </div>
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Negative Prompt</label>
+                            <div className="bg-gray-50 p-3 rounded-md h-32 overflow-y-auto">
+                              <p className="text-sm text-gray-700 font-mono">{scenes[activeSceneIndex].negativePrompt}</p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
           )}
         </div>
       </main>
