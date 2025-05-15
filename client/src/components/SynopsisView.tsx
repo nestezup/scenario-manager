@@ -76,16 +76,58 @@ const SynopsisView: React.FC = () => {
   }
   
   // Handle form submission
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (synopsis.trim()) {
       setStep('processing')
       
-      // Mock API call for now
-      setTimeout(() => {
+      try {
+        // 실제 API 호출
+        const response = await fetch('/api/parse-scenes', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            synopsis: synopsis,
+            scene_count: sceneCount
+          })
+        })
+        
+        if (!response.ok) {
+          throw new Error('API 호출 중 오류가 발생했습니다.')
+        }
+        
+        const parsedScenes = await response.json()
+        
+        // 응답 데이터를 Scene 타입에 맞게 변환
+        const formattedScenes = parsedScenes.map((scene: any) => ({
+          id: scene.id,
+          text: scene.text,
+          order: scene.order,
+          imagePrompt: '',
+          images: [],
+          selectedImageIndex: null,
+          selectedImage: null,
+          videoPrompt: '',
+          negativePrompt: '',
+          loadingImagePrompt: false,
+          loadingImages: false,
+          loadingVideoPrompt: false
+        }))
+        
+        setScenes(formattedScenes)
+        setActiveSceneIndex(0)
+        setStep('scenes')
+      } catch (error) {
+        console.error('씬 분석 중 오류 발생:', error)
+        // 오류 시 모의 데이터로 폴백 (실제 환경에서는 오류 메시지 표시)
+        alert('씬 분석 중 오류가 발생했습니다. 관리자에게 문의하세요.')
+        
+        // 임시 폴백 코드 (개발 목적)
         const mockScenes = Array.from({ length: sceneCount }, (_, i) => ({
           id: i + 1,
-          text: sceneStarters[i % sceneStarters.length],
+          text: `씬 ${i + 1}: API 오류로 인해 임시 데이터를 표시합니다.`,
           order: i + 1,
           imagePrompt: '',
           images: [],
@@ -101,7 +143,7 @@ const SynopsisView: React.FC = () => {
         setScenes(mockScenes)
         setActiveSceneIndex(0)
         setStep('scenes')
-      }, 1500)
+      }
     }
   }
   
@@ -115,7 +157,7 @@ const SynopsisView: React.FC = () => {
   }
   
   // Generate image prompt for a scene
-  const generateImagePrompt = (sceneId: number) => {
+  const generateImagePrompt = async (sceneId: number) => {
     // Set loading state
     setScenes(prevScenes => 
       prevScenes.map(scene => 
@@ -123,28 +165,52 @@ const SynopsisView: React.FC = () => {
       )
     )
     
-    // Mock API call
-    setTimeout(() => {
+    try {
       const scene = scenes.find(s => s.id === sceneId)
       if (!scene) return
       
-      const randomStyle = styleDescriptors[Math.floor(Math.random() * styleDescriptors.length)]
-      const prompt = `${scene.text} ${randomStyle}`
+      // 실제 API 호출
+      const response = await fetch('/api/generate-image-prompt', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          scene_text: scene.text
+        })
+      })
+      
+      if (!response.ok) {
+        throw new Error('이미지 프롬프트 생성 중 오류가 발생했습니다.')
+      }
+      
+      const data = await response.json()
       
       setScenes(prevScenes => 
         prevScenes.map(scene => 
           scene.id === sceneId ? { 
             ...scene, 
-            imagePrompt: prompt,
+            imagePrompt: data.prompt,
             loadingImagePrompt: false 
           } : scene
         )
       )
-    }, 1000)
+    } catch (error) {
+      console.error('이미지 프롬프트 생성 중 오류:', error)
+      
+      // 오류 발생 시 로딩 상태 해제
+      setScenes(prevScenes => 
+        prevScenes.map(scene => 
+          scene.id === sceneId ? { ...scene, loadingImagePrompt: false } : scene
+        )
+      )
+      
+      alert('이미지 프롬프트 생성 중 오류가 발생했습니다.')
+    }
   }
   
   // Generate images for a scene
-  const generateImages = (sceneId: number) => {
+  const generateImages = async (sceneId: number) => {
     const scene = scenes.find(s => s.id === sceneId)
     if (!scene || !scene.imagePrompt) return
     
@@ -155,29 +221,45 @@ const SynopsisView: React.FC = () => {
       )
     )
     
-    // Mock API call
-    setTimeout(() => {
-      // Get 3 random images
-      const randomIndices: number[] = []
-      while (randomIndices.length < 3) {
-        const randomIndex = Math.floor(Math.random() * movieImages.length)
-        if (!randomIndices.includes(randomIndex)) {
-          randomIndices.push(randomIndex)
-        }
+    try {
+      // 실제 API 호출
+      const response = await fetch('/api/generate-images', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          prompt: scene.imagePrompt
+        })
+      })
+      
+      if (!response.ok) {
+        throw new Error('이미지 생성 중 오류가 발생했습니다.')
       }
       
-      const images = randomIndices.map(index => movieImages[index])
+      const data = await response.json()
       
       setScenes(prevScenes => 
         prevScenes.map(s => 
           s.id === sceneId ? { 
             ...s, 
-            images,
+            images: data.images,
             loadingImages: false 
           } : s
         )
       )
-    }, 1500)
+    } catch (error) {
+      console.error('이미지 생성 중 오류:', error)
+      
+      // 오류 발생 시 로딩 상태 해제
+      setScenes(prevScenes => 
+        prevScenes.map(s => 
+          s.id === sceneId ? { ...s, loadingImages: false } : s
+        )
+      )
+      
+      alert('이미지 생성 중 오류가 발생했습니다.')
+    }
   }
   
   // Select an image for a scene
