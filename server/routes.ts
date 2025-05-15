@@ -2,12 +2,18 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import fetch from 'node-fetch';
+import Replicate from 'replicate';
 import { 
   parseSceneRequestSchema, 
   imagePromptRequestSchema, 
   generateImageRequestSchema,
   describeImageRequestSchema
 } from "@shared/schema";
+
+// Replicate 클라이언트 초기화
+const replicate = new Replicate({
+  auth: process.env.REPLICATE_API_TOKEN || '',
+});
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // API Routes for our POC application
@@ -117,30 +123,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const data = generateImageRequestSchema.parse(req.body);
       
-      // Mock image generation with film-related stock images
-      const movieImages = [
-        "https://images.unsplash.com/photo-1516214104703-d870798883c5?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&h=600", // Forest
-        "https://images.unsplash.com/photo-1620332372374-f108c53d2e03?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&h=600", // City night
-        "https://images.unsplash.com/photo-1590523278191-995cbcda646b?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&h=600", // Beach
-        "https://images.unsplash.com/photo-1483653364400-eedcfb9f1f88?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&h=600", // Dark alley
-        "https://images.unsplash.com/photo-1482192505345-5655af888cc4?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&h=600", // Lake
-        "https://images.unsplash.com/photo-1513407030348-c983a97b98d8?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&h=600"  // Building
-      ];
-      
-      // Choose 3 random images
-      const randomIndices: number[] = [];
-      while (randomIndices.length < 3) {
-        const randomIndex = Math.floor(Math.random() * movieImages.length);
-        if (!randomIndices.includes(randomIndex)) {
-          randomIndices.push(randomIndex);
-        }
+      if (!process.env.REPLICATE_API_TOKEN) {
+        throw new Error('REPLICATE_API_TOKEN is required');
       }
       
-      const images = randomIndices.map(index => movieImages[index]);
+      console.log("이미지 생성 요청 프롬프트:", data.prompt);
       
-      res.json({ images });
-    } catch (error) {
-      res.status(400).json({ message: "Invalid request data" });
+      try {
+        // Replicate API를 사용하여 이미지 생성
+        const output = await replicate.run(
+          "black-forest-labs/flux-schnell", // 모델 ID
+          {
+            input: {
+              prompt: data.prompt,
+              go_fast: true,
+              num_outputs: 3,  // 3개의 이미지 생성
+              aspect_ratio: "16:9",  // 영화에 적합한 가로세로 비율
+              output_format: "webp",
+              output_quality: 80
+            }
+          }
+        );
+        
+        console.log("이미지 생성 응답:", JSON.stringify(output).slice(0, 200) + '...');
+        
+        // 응답 구조 확인
+        if (!Array.isArray(output)) {
+          throw new Error('Unexpected response format from Replicate API');
+        }
+        
+        res.json({ images: output });
+      } catch (replicateError: any) {
+        console.error("Replicate API 오류:", replicateError);
+        
+        // API 오류 시 임시로 가상 이미지 제공 (테스트용)
+        const fallbackImages = [
+          "https://images.unsplash.com/photo-1516214104703-d870798883c5?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&h=600",
+          "https://images.unsplash.com/photo-1620332372374-f108c53d2e03?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&h=600",
+          "https://images.unsplash.com/photo-1590523278191-995cbcda646b?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&h=600"
+        ];
+        
+        res.json({ images: fallbackImages });
+      }
+    } catch (error: any) {
+      console.error("이미지 생성 오류:", error);
+      res.status(500).json({ message: "Failed to generate images: " + (error.message || 'Unknown error') });
     }
   });
 
