@@ -68,21 +68,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const data = imagePromptRequestSchema.parse(req.body);
       
-      // Mock image prompt generation
-      const styleDescriptors = [
-        "cinematic lighting, detailed, high definition, 8K",
-        "dramatic composition, movie still, professional photography",
-        "high detail, realistic texture, professional cinematography",
-        "photorealistic, high quality, detailed environment",
-        "film grain, atmospheric lighting, depth of field"
-      ];
+      // 실제 Dify API 호출
+      const response = await fetch('https://dify.slowcampus.kr/v1/workflows/run', {
+        method: 'POST',
+        headers: {
+          'Authorization': 'Bearer app-3iMrcMZH02bGoXNqKLVpCdDF',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          inputs: {
+            scene_text: data.scene_text
+          },
+          response_mode: "blocking",
+          user: "user-" + Math.random().toString(36).substring(2, 10)
+        })
+      });
       
-      const randomStyle = styleDescriptors[Math.floor(Math.random() * styleDescriptors.length)];
-      const prompt = `${data.scene_text} ${randomStyle}`;
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Dify API error: ${errorText}`);
+      }
       
-      res.json({ prompt });
-    } catch (error) {
-      res.status(400).json({ message: "Invalid request data" });
+      const difyData = await response.json() as { 
+        data?: { 
+          outputs?: { 
+            text?: string 
+          } 
+        } 
+      };
+      
+      // Dify API 응답 구조 확인
+      if (!difyData.data?.outputs?.text) {
+        throw new Error('Dify API 응답에 필요한 데이터가 없습니다: ' + JSON.stringify(difyData));
+      }
+      
+      // Dify API 응답의 text 필드에서 JSON 문자열 파싱
+      const imagePromptData = JSON.parse(difyData.data.outputs.text);
+      
+      res.json(imagePromptData);
+    } catch (error: any) {
+      console.error("Image prompt generation error:", error);
+      res.status(500).json({ message: "Failed to generate image prompt: " + (error.message || 'Unknown error') });
     }
   });
 
