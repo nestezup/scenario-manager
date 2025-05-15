@@ -150,7 +150,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           })
         });
         
-        const predictionData = await prediction.json();
+        const predictionData = await prediction.json() as {
+          id: string;
+          status: string;
+          output: string[] | null;
+          error: string | null;
+        };
         console.log("Replicate 초기 응답:", JSON.stringify(predictionData).slice(0, 200) + "...");
         
         // 결과가 완료될 때까지 폴링
@@ -168,7 +173,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
           });
           
-          const checkData = await checkResponse.json();
+          const checkData = await checkResponse.json() as {
+            status: string;
+            output: string[] | null;
+            error: string | null;
+          };
           console.log(`폴링 시도 #${attempts} - 상태: ${checkData.status}`);
           
           if (checkData.status === "succeeded") {
@@ -215,29 +224,69 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const data = describeImageRequestSchema.parse(req.body);
       
-      // Mock video prompt generation
-      const videoPrompts = [
-        "A cinematic sequence showing the scene with dramatic lighting and atmosphere. Camera slowly moves from left to right, revealing the scene details. Depth of field effect with background slightly blurred.",
-        "High-definition video capture of the scene. Camera starts with a wide establishing shot and gradually zooms in on the main subject. Natural lighting with golden hour warm tones.",
-        "Atmospheric video sequence depicting the environment. Camera makes a slow vertical pan from bottom to top. Moody color grading with high contrast and subtle film grain.",
-        "Dynamic video footage with movement. Camera follows the action with smooth tracking shot. Professional cinema-quality lighting with emphasis on shadows and highlights."
-      ];
+      console.log("영상 프롬프트 생성 요청:", data.image_url);
       
-      const negativePrompts = [
-        "low quality, blurry, distorted, pixelated, low resolution, oversaturated, amateur footage, shaky camera, out of focus, poor lighting",
-        "text overlay, watermarks, logos, timestamps, jerky movement, digital artifacts, noise, grain, dust, scratches, stains",
-        "glitchy, over-sharpened, noisy, poorly edited, bad composition, distracting elements, incorrect colors",
-        "low contrast, washed out colors, poor color grading, unstable footage, excessive zoom, poor white balance, incorrect aspect ratio"
-      ];
-      
-      const randomIndex = Math.floor(Math.random() * videoPrompts.length);
-      
-      res.json({
-        video_prompt: videoPrompts[randomIndex],
-        negative_prompt: negativePrompts[randomIndex]
-      });
-    } catch (error) {
-      res.status(400).json({ message: "Invalid request data" });
+      try {
+        const n8nWebhookUrl = "https://n8n.automationpro.online/webhook/7705292a-a192-4ab1-a238-c4bafd098ee1";
+        
+        // n8n 웹훅 호출
+        const response = await fetch(n8nWebhookUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            image_url: data.image_url
+          })
+        });
+        
+        if (!response.ok) {
+          throw new Error(`API 응답 오류: ${response.status} ${response.statusText}`);
+        }
+        
+        const result = await response.json() as {
+          video_prompt: string;
+          negative_prompt: string;
+        };
+        console.log("영상 프롬프트 생성 결과:", result);
+        
+        // 응답 확인
+        if (!result.video_prompt || !result.negative_prompt) {
+          throw new Error("영상 프롬프트 생성 결과가 올바른 형식이 아닙니다");
+        }
+        
+        res.json({
+          video_prompt: result.video_prompt,
+          negative_prompt: result.negative_prompt
+        });
+      } catch (apiError: any) {
+        console.error("영상 프롬프트 생성 API 오류:", apiError);
+        
+        // API 오류 시 임시 응답 제공
+        const videoPrompts = [
+          "A cinematic sequence showing the scene with dramatic lighting and atmosphere. Camera slowly moves from left to right, revealing the scene details.",
+          "High-definition video capture of the scene. Camera starts with a wide establishing shot and gradually zooms in on the main subject.",
+          "Atmospheric video sequence depicting the environment. Camera makes a slow vertical pan from bottom to top.",
+          "Dynamic video footage with movement. Camera follows the action with smooth tracking shot."
+        ];
+        
+        const negativePrompts = [
+          "low quality, blurry, distorted, pixelated, low resolution, oversaturated, amateur footage, shaky camera, out of focus",
+          "text overlay, watermarks, logos, timestamps, jerky movement, digital artifacts, noise, grain, dust, scratches",
+          "glitchy, over-sharpened, noisy, poorly edited, bad composition, distracting elements, incorrect colors",
+          "low contrast, washed out colors, poor color grading, unstable footage, excessive zoom, poor white balance"
+        ];
+        
+        const randomIndex = Math.floor(Math.random() * videoPrompts.length);
+        
+        res.json({
+          video_prompt: videoPrompts[randomIndex],
+          negative_prompt: negativePrompts[randomIndex]
+        });
+      }
+    } catch (error: any) {
+      console.error("영상 프롬프트 생성 요청 오류:", error);
+      res.status(400).json({ message: "Invalid request data: " + (error.message || 'Unknown error') });
     }
   });
 
