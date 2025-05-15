@@ -1,5 +1,4 @@
-// Define types for the application
-
+// Scene related types
 export interface Scene {
   id: number
   text: string
@@ -15,12 +14,14 @@ export interface Scene {
   loadingVideoPrompt?: boolean
 }
 
+// Notification types
 export interface NotificationType {
   show: boolean
   message: string
   type: 'success' | 'error' | 'info'
 }
 
+// JSON output format
 export interface SceneOutput {
   scene_id: number
   scene_text: string
@@ -30,7 +31,7 @@ export interface SceneOutput {
   negative_prompt: string
 }
 
-// API response types
+// API Response Types
 export interface ParseScenesResponse {
   id: number
   text: string
