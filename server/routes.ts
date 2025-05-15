@@ -40,10 +40,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         throw new Error(`Dify API error: ${errorText}`);
       }
       
-      const difyData = await response.json() as { text: string };
+      const difyData = await response.json() as { 
+        data?: { 
+          outputs?: { 
+            text?: string 
+          } 
+        } 
+      };
+      
+      // Dify API 응답 구조 확인
+      if (!difyData.data?.outputs?.text) {
+        throw new Error('Dify API 응답에 필요한 데이터가 없습니다: ' + JSON.stringify(difyData));
+      }
       
       // Dify API 응답의 text 필드에서 JSON 문자열 파싱
-      const scenes = JSON.parse(difyData.text);
+      const scenes = JSON.parse(difyData.data.outputs.text);
       
       res.json(scenes);
     } catch (error: any) {
