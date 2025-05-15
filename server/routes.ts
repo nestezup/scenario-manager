@@ -130,10 +130,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log("이미지 생성 요청 프롬프트:", data.prompt);
       
       try {
-        // Replicate API를 사용하여 이미지 생성
-        const output = await replicate.run(
-          "black-forest-labs/flux-schnell", // 모델 ID
-          {
+        // Replicate API를 직접 호출 (Node.js 클라이언트 대신 fetch 사용)
+        const prediction = await fetch("https://api.replicate.com/v1/predictions", {
+          method: "POST",
+          headers: {
+            "Authorization": `Token ${process.env.REPLICATE_API_TOKEN}`,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            version: "black-forest-labs/flux-schnell",
             input: {
               prompt: data.prompt,
               go_fast: true,
@@ -142,17 +147,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
               output_format: "webp",
               output_quality: 80
             }
+          })
+        });
+        
+        const predictionData = await prediction.json();
+        console.log("Replicate 초기 응답:", JSON.stringify(predictionData).slice(0, 200) + "...");
+        
+        // 결과가 완료될 때까지 폴링
+        let imageUrls: string[] = [];
+        let attempts = 0;
+        const maxAttempts = 15; // 최대 시도 횟수 (약 30초)
+        
+        while (attempts < maxAttempts) {
+          attempts++;
+          
+          // 진행 상태 확인
+          const checkResponse = await fetch(`https://api.replicate.com/v1/predictions/${predictionData.id}`, {
+            headers: {
+              "Authorization": `Token ${process.env.REPLICATE_API_TOKEN}`
+            }
+          });
+          
+          const checkData = await checkResponse.json();
+          console.log(`폴링 시도 #${attempts} - 상태: ${checkData.status}`);
+          
+          if (checkData.status === "succeeded") {
+            imageUrls = checkData.output || [];
+            break;
+          } else if (checkData.status === "failed" || checkData.error) {
+            throw new Error(`Replicate API 실패: ${checkData.error || "Unknown error"}`);
           }
-        );
-        
-        console.log("이미지 생성 응답:", JSON.stringify(output).slice(0, 200) + '...');
-        
-        // 응답 구조 확인
-        if (!Array.isArray(output)) {
-          throw new Error('Unexpected response format from Replicate API');
+          
+          // 2초 대기
+          await new Promise(resolve => setTimeout(resolve, 2000));
         }
         
-        res.json({ images: output });
+        if (imageUrls.length === 0) {
+          if (attempts >= maxAttempts) {
+            throw new Error("시간 초과: 이미지 생성이 너무 오래 걸립니다");
+          } else {
+            throw new Error("이미지 URL을 받지 못했습니다");
+          }
+        }
+        
+        console.log("생성된 이미지 URL:", imageUrls);
+        res.json({ images: imageUrls });
       } catch (replicateError: any) {
         console.error("Replicate API 오류:", replicateError);
         
