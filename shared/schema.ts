@@ -72,3 +72,19 @@ export type ParseSceneRequest = z.infer<typeof parseSceneRequestSchema>;
 export type ImagePromptRequest = z.infer<typeof imagePromptRequestSchema>;
 export type GenerateImageRequest = z.infer<typeof generateImageRequestSchema>;
 export type DescribeImageRequest = z.infer<typeof describeImageRequestSchema>;
+
+// 영상 생성 요청 스키마
+export const generateVideoRequestSchema = z.object({
+  image_url: z.string(),
+  video_prompt: z.string(),
+  negative_prompt: z.string().optional()
+});
+
+export type GenerateVideoRequest = z.infer<typeof generateVideoRequestSchema>;
+
+// 영상 생성 진행 상태 확인 스키마
+export const checkVideoStatusRequestSchema = z.object({
+  request_id: z.string()
+});
+
+export type CheckVideoStatusRequest = z.infer<typeof checkVideoStatusRequestSchema>;
