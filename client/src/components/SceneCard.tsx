@@ -215,11 +215,7 @@ const SceneCard: React.FC<SceneCardProps> = ({ scene, index }) => {
                 <button 
                   onClick={() => generateVideoForScene()}
                   disabled={!scene.videoPrompt || (scene as SceneWithVideo).loadingVideo || (scene as SceneWithVideo).videoStatus === 'pending'}
-                  className={`px-2 py-1 rounded-md text-xs font-medium ${
-                    scene.videoPrompt && !(scene as SceneWithVideo).loadingVideo && (scene as SceneWithVideo).videoStatus !== 'pending'
-                      ? 'bg-primary-500 text-white hover:bg-primary-600' 
-                      : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                  }`}
+                  className="px-2 py-1 rounded-md text-xs font-medium bg-primary-500 text-white hover:bg-primary-600"
                 >
                   영상 생성하기
                 </button>
