@@ -26,6 +26,9 @@ if (process.env.FAL_KEY) {
   });
 }
 
+// 비디오 요청 정보를 임시 저장할 캐시 (메모리)
+const videoRequestCache = new Map();
+
 export async function registerRoutes(app: Express): Promise<Server> {
   // API Routes for our POC application
 
@@ -377,6 +380,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         console.log("영상 생성 요청 ID:", result.request_id);
         
+        // 요청 정보 캐시에 저장 (나중에 썸네일로 원본 이미지 사용)
+        videoRequestCache.set(result.request_id, {
+          imageUrl: data.image_url,
+          videoPrompt: data.video_prompt,
+          negativePrompt: data.negative_prompt || ""
+        });
+        
         // 요청 ID 반환 (비동기 처리)
         res.json({ 
           request_id: result.request_id,
@@ -430,10 +440,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           // 해당 요청의 원본 데이터 로드 (비디오 생성 시 사용된 이미지)
           try {
-            // 원본 이미지 URL 가져오기
-            const requestData = await db.query.videoPrompts.findFirst({
-              where: eq(videoPrompts.videoRequestId, data.request_id)
-            });
+            // 비디오 요청에 사용된 원본 이미지 정보 가져오기
+            // 실제 프로덕션 코드에서는 아래와 같이 DB를 사용해야 합니다
+            // const requestData = await db.query.videoPrompts.findFirst({
+            //   where: eq(videoPrompts.videoRequestId, data.request_id)
+            // });
+            
+            // 영상 생성 요청 시 저장된 정보 가져오기 (임시 구현)
+            const requestData = videoRequestCache.get(data.request_id);
             
             // 요청 데이터가 있고 원본 이미지 URL이 있다면 그것을 사용
             if (requestData && requestData.imageUrl) {
