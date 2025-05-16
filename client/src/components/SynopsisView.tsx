@@ -343,7 +343,7 @@ const SynopsisView: React.FC = () => {
           videoStatus: undefined,
           videoUrl: undefined,
           thumbnailUrl: undefined
-        } : s
+        } as SceneWithVideo : s
       )
     )
     
@@ -371,7 +371,7 @@ const SynopsisView: React.FC = () => {
       console.log('영상 생성 응답 성공:', data)
       
       // 영상 생성 요청 성공 - 명시적으로 모든 필드 업데이트
-      const updatedScenes = prevScenes => {
+      const updatedScenes = (prevScenes: Scene[]) => {
         const newScenes = [...prevScenes]
         const sceneIndex = newScenes.findIndex(s => s.id === sceneId)
         
@@ -381,7 +381,7 @@ const SynopsisView: React.FC = () => {
             loadingVideo: false,
             videoRequestId: data.request_id,
             videoStatus: 'pending'
-          }
+          } as SceneWithVideo
         }
         
         console.log('영상 생성 상태 업데이트:', newScenes[sceneIndex])
@@ -485,17 +485,20 @@ const SynopsisView: React.FC = () => {
     const scene = scenes.find(s => s.id === sceneId)
     if (!scene) return
     
+    // 비디오 관련 속성을 사용하기 위해 타입 캐스팅
+    const sceneWithVideo = scene as SceneWithVideo
+    
     // 디버깅을 위한 로그 추가
-    console.log('비디오 상태 확인 시작:', sceneId, scene.videoRequestId, scene.videoStatus)
+    console.log('비디오 상태 확인 시작:', sceneId, sceneWithVideo.videoRequestId, sceneWithVideo.videoStatus)
     
     // 요청 ID가 없거나 pending 상태가 아니면 확인 중단
-    if (!scene.videoRequestId || scene.videoStatus !== 'pending') {
-      console.log('비디오 상태 확인 중단: 조건 불일치', scene.videoRequestId, scene.videoStatus)
+    if (!sceneWithVideo.videoRequestId || sceneWithVideo.videoStatus !== 'pending') {
+      console.log('비디오 상태 확인 중단: 조건 불일치', sceneWithVideo.videoRequestId, sceneWithVideo.videoStatus)
       return
     }
     
     try {
-      console.log('비디오 상태 확인 API 호출:', scene.videoRequestId)
+      console.log('비디오 상태 확인 API 호출:', sceneWithVideo.videoRequestId)
       
       // 실제 API 호출
       const response = await fetch('/api/check-video-status', {
@@ -504,7 +507,7 @@ const SynopsisView: React.FC = () => {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          request_id: scene.videoRequestId
+          request_id: sceneWithVideo.videoRequestId
         })
       })
       
@@ -898,27 +901,27 @@ const SynopsisView: React.FC = () => {
                       </div>
                       
                       {/* Video Generation Status */}
-                      {scenes[activeSceneIndex].loadingVideo ? (
+                      {(scenes[activeSceneIndex] as SceneWithVideo).loadingVideo ? (
                         <div className="flex items-center text-gray-500 text-sm py-2">
                           <span>영상 생성 요청 처리 중...</span>
                         </div>
-                      ) : scenes[activeSceneIndex].videoStatus === 'pending' ? (
+                      ) : (scenes[activeSceneIndex] as SceneWithVideo).videoStatus === 'pending' ? (
                         <div className="text-center py-3">
                           <VideoProgress scene={scenes[activeSceneIndex] as SceneWithVideo} />
                         </div>
-                      ) : scenes[activeSceneIndex].videoStatus === 'completed' && scenes[activeSceneIndex].thumbnailUrl ? (
+                      ) : (scenes[activeSceneIndex] as SceneWithVideo).videoStatus === 'completed' && (scenes[activeSceneIndex] as SceneWithVideo).thumbnailUrl ? (
                         <div className="flex items-center space-x-4">
                           <div className="relative w-32 bg-gray-100 rounded overflow-hidden">
                             <div className="aspect-[9/16] w-full overflow-hidden">
                               <img 
-                                src={scenes[activeSceneIndex].thumbnailUrl} 
+                                src={(scenes[activeSceneIndex] as SceneWithVideo).thumbnailUrl} 
                                 alt="영상 썸네일" 
                                 className="w-full h-full object-contain"
                                 style={{ maxHeight: '100%', maxWidth: '100%' }}
                               />
                             </div>
                             <a 
-                              href={scenes[activeSceneIndex].videoUrl} 
+                              href={(scenes[activeSceneIndex] as SceneWithVideo).videoUrl} 
                               target="_blank" 
                               rel="noopener noreferrer"
                               className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-30 hover:bg-opacity-40"
@@ -936,7 +939,7 @@ const SynopsisView: React.FC = () => {
                               onClick={async () => {
                                 try {
                                   const success = await useSceneStore.getState().downloadVideo(
-                                    scenes[activeSceneIndex].videoUrl || '', 
+                                    (scenes[activeSceneIndex] as SceneWithVideo).videoUrl || '', 
                                     `scene_${scenes[activeSceneIndex].id}_video.mp4`
                                   );
                                   // 성공/실패 메시지는 콘솔에 표시
@@ -958,7 +961,7 @@ const SynopsisView: React.FC = () => {
                             </button>
                           </div>
                         </div>
-                      ) : scenes[activeSceneIndex].videoStatus === 'failed' ? (
+                      ) : (scenes[activeSceneIndex] as SceneWithVideo).videoStatus === 'failed' ? (
                         <div className="text-center py-3 text-red-500">
                           영상 생성 중 오류가 발생했습니다. 다시 시도해 주세요.
                         </div>
