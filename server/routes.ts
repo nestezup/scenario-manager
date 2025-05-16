@@ -422,19 +422,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
           
           // 생성된 영상 정보 반환
-          // fal.ai API의 응답에서 thumbnailUrl 직접 사용
           console.log("영상 생성 결과:", JSON.stringify(result.data));
           
-          let thumbnailUrl = result.data.video.url.replace(/\.[^/.]+$/, ".jpg");
+          // 영상 URL에서 썸네일 이미지 URL 생성 (JPG 확장자로)
+          const videoUrl = result.data.video.url;
+          let thumbnailUrl = videoUrl.replace(/\.[^/.]+$/, ".jpg");
           
-          // 실제 API 응답에 thumbnailUrl이 있으면 그것을 사용
-          if (result.data.thumbnail?.url) {
-            thumbnailUrl = result.data.thumbnail.url;
+          // 해당 요청의 원본 데이터 로드 (비디오 생성 시 사용된 이미지)
+          try {
+            // 원본 이미지 URL 가져오기
+            const requestData = await db.query.videoPrompts.findFirst({
+              where: eq(videoPrompts.videoRequestId, data.request_id)
+            });
+            
+            // 요청 데이터가 있고 원본 이미지 URL이 있다면 그것을 사용
+            if (requestData && requestData.imageUrl) {
+              thumbnailUrl = requestData.imageUrl;
+              console.log("원본 이미지를 썸네일로 사용:", thumbnailUrl);
+            }
+          } catch (err) {
+            console.warn("이미지 URL 조회 실패:", err);
           }
           
           res.json({
             status: "completed",
-            video_url: result.data.video.url,
+            video_url: videoUrl,
             thumbnail_url: thumbnailUrl
           });
         } else if (status.status === "FAILED") {

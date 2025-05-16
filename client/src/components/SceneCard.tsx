@@ -46,12 +46,22 @@ const SceneCard: React.FC<SceneCardProps> = ({ scene, index }) => {
     }
 
     if (sceneWithVideo.videoStatus === 'pending') {
+      // 진행 시간에 따라 애니메이션 다르게 표시
+      const startTime = sceneWithVideo.videoRequestStartTime || 0;
+      const elapsed = startTime ? Math.floor((Date.now() - startTime) / 1000) : 0;
+      const dots = '.'.repeat(elapsed % 6 + 1); // 1~6개의 점을 번갈아 표시
+      const progress = Math.min(elapsed / 60 * 100, 95); // 최대 95%까지만 표시 (60초 기준)
+      
       return (
         <div className="text-center py-3">
-          <div className="text-amber-500 text-sm mb-2">영상 생성 진행 중... (30초~1분 소요)</div>
+          <div className="text-amber-500 text-sm mb-2">영상 생성 진행 중{dots} (30초~1분 소요)</div>
           <div className="w-full h-2 bg-gray-200 rounded-full">
-            <div className="w-1/2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+            <div 
+              className="h-2 bg-blue-500 rounded-full transition-all duration-500" 
+              style={{ width: `${progress}%` }}
+            ></div>
           </div>
+          <div className="text-xs text-gray-500 mt-1">{elapsed}초 경과</div>
         </div>
       )
     }
