@@ -460,5 +460,40 @@ export const useSceneStore = create<SceneState>((set, get) => ({
     document.body.appendChild(downloadAnchorNode)
     downloadAnchorNode.click()
     downloadAnchorNode.remove()
+  },
+  
+  // 비디오 다운로드 헬퍼 함수
+  downloadVideo: async (videoUrl: string, fileName = 'verticalVideo.mp4') => {
+    try {
+      // Fetch 요청으로 파일 데이터 가져오기
+      const response = await fetch(videoUrl);
+      if (!response.ok) {
+        throw new Error('동영상을 다운로드할 수 없습니다.');
+      }
+      
+      // 응답을 Blob으로 변환
+      const blob = await response.blob();
+      
+      // Blob URL 생성
+      const blobUrl = URL.createObjectURL(blob);
+      
+      // 다운로드 링크 생성 및 클릭
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      
+      // 정리
+      setTimeout(() => {
+        document.body.removeChild(a);
+        URL.revokeObjectURL(blobUrl);
+      }, 100);
+      
+      return true;
+    } catch (error) {
+      console.error('다운로드 오류:', error);
+      return false;
+    }
   }
 }))
