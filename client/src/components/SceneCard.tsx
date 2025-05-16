@@ -37,127 +37,93 @@ const SceneCard: React.FC<SceneCardProps> = ({ scene, index }) => {
   }
   
   return (
-    <div className="bg-white rounded-lg shadow-sm">
-      <div className="p-4">
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-lg font-medium">씬 {index + 1}</h3>
-          <div className="flex space-x-2">
-            <button 
-              onClick={() => moveScene(-1)} 
-              disabled={index === 0}
-              className={`p-1 rounded hover:bg-gray-100 ${
-                index === 0 ? 'text-gray-400 cursor-not-allowed' : ''
-              }`}
-            >
-              <i className="fas fa-arrow-left"></i>
-            </button>
-            <button 
-              onClick={() => moveScene(1)} 
-              disabled={index === scenes.length - 1}
-              className={`p-1 rounded hover:bg-gray-100 ${
-                index === scenes.length - 1 ? 'text-gray-400 cursor-not-allowed' : ''
-              }`}
-            >
-              <i className="fas fa-arrow-right"></i>
-            </button>
-            <button 
-              onClick={() => deleteScene(index)}
-              disabled={scenes.length <= 1}
-              className={`p-1 rounded ${
-                scenes.length > 1 
-                  ? 'text-red-500 hover:bg-red-50' 
-                  : 'text-gray-400 cursor-not-allowed'
-              }`}
-            >
-              <i className="fas fa-trash"></i>
-            </button>
-          </div>
-        </div>
-        
-        {/* Scene Text Editor */}
-        <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700 mb-1">씬 내용</label>
+    <div className="bg-white rounded-lg shadow-sm p-6">
+      <h2 className="text-xl font-medium mb-4">씬 {index + 1}</h2>
+      
+      <div className="space-y-6">
+        {/* 씬 내용 */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">씬 내용</label>
           <textarea 
             value={text} 
             onChange={handleTextChange}
             onBlur={handleTextBlur}
-            className="w-full border border-gray-300 rounded-md shadow-sm p-3 h-20 focus:border-primary-500 focus:ring-primary-500"
+            className="w-full border border-gray-300 rounded-md p-3 h-24"
+            placeholder="씬 내용을 입력하세요"
           ></textarea>
         </div>
         
-        {/* Step Buttons */}
-        <div className="space-y-4">
-          {/* Step 1: Image Prompt */}
-          <div className="border border-gray-200 rounded-md p-3">
+        {/* 워크플로우 단계 */}
+        <div className="space-y-6">
+          {/* 1. 이미지 프롬프트 */}
+          <div className="border border-gray-200 rounded-lg p-4">
             <div className="flex justify-between items-center mb-2">
-              <h4 className="font-medium text-gray-800">1. 이미지 프롬프트</h4>
+              <h3 className="text-md font-medium">1. 이미지 프롬프트</h3>
               <button 
                 onClick={generateImagePromptForScene}
                 disabled={!scene.text.trim()}
-                className={`px-3 py-1 rounded-md text-xs font-medium ${
+                className={`px-3 py-1 rounded-md text-sm ${
                   scene.text.trim() 
-                    ? 'bg-primary-500 text-white hover:bg-primary-600' 
-                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    ? 'bg-blue-500 text-white' 
+                    : 'bg-gray-200 text-gray-500 cursor-not-allowed'
                 }`}
               >
                 생성하기
               </button>
             </div>
             
-            {/* Prompt Display or Loading */}
             {scene.loadingImagePrompt ? (
-              <div className="animate-pulse flex items-center py-2">
-                <i className="fas fa-spinner fa-spin text-gray-400 mr-2"></i>
-                <span className="text-sm text-gray-500">프롬프트 생성 중...</span>
+              <div className="flex items-center text-gray-500 text-sm py-2">
+                <span className="mr-2">프롬프트 생성 중...</span>
               </div>
             ) : scene.imagePrompt ? (
-              <div className="bg-gray-50 p-2 rounded-md">
-                <p className="text-sm font-mono text-gray-700">{scene.imagePrompt}</p>
+              <div className="bg-gray-50 p-3 rounded text-sm">
+                {scene.imagePrompt}
               </div>
             ) : null}
           </div>
           
-          {/* Step 2: Generate & Select Images */}
-          <div className="border border-gray-200 rounded-md p-3">
+          {/* 2. 이미지 생성 및 선택 */}
+          <div className="border border-gray-200 rounded-lg p-4">
             <div className="flex justify-between items-center mb-2">
-              <h4 className="font-medium text-gray-800">2. 이미지 생성 및 선택</h4>
+              <h3 className="text-md font-medium">2. 이미지 생성 및 선택</h3>
               <button 
                 onClick={generateImagesForScene}
                 disabled={!scene.imagePrompt}
-                className={`px-3 py-1 rounded-md text-xs font-medium ${
+                className={`px-3 py-1 rounded-md text-sm ${
                   scene.imagePrompt 
-                    ? 'bg-primary-500 text-white hover:bg-primary-600' 
-                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    ? 'bg-blue-500 text-white' 
+                    : 'bg-gray-200 text-gray-500 cursor-not-allowed'
                 }`}
               >
                 이미지 생성
               </button>
             </div>
             
-            {/* Images Loading State */}
             {scene.loadingImages ? (
-              <div className="animate-pulse flex items-center justify-center py-2">
-                <i className="fas fa-spinner fa-spin text-gray-400 mr-2"></i>
-                <span className="text-sm text-gray-500">이미지 생성 중...</span>
+              <div className="flex items-center text-gray-500 text-sm py-2">
+                <span>이미지 생성 중...</span>
               </div>
             ) : scene.images && scene.images.length > 0 ? (
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-3 gap-3">
                 {scene.images.map((image, idx) => (
                   <div 
                     key={idx}
                     onClick={() => selectImage(idx)}
-                    className={`relative cursor-pointer rounded-md overflow-hidden ${
-                      scene.selectedImageIndex === idx ? 'ring-2 ring-primary-500 ring-offset-1' : ''
+                    className={`relative cursor-pointer rounded overflow-hidden ${
+                      scene.selectedImageIndex === idx ? 'ring-2 ring-blue-500' : ''
                     }`}
                   >
                     <img 
                       src={image} 
-                      className="w-full h-20 object-cover" 
-                      alt={`Scene ${index + 1} candidate image ${idx + 1}`}
+                      className="w-full h-24 object-cover" 
+                      alt={`Scene ${index + 1} image option ${idx + 1}`}
                     />
                     {scene.selectedImageIndex === idx && (
-                      <div className="absolute top-1 right-1 bg-primary-500 rounded-full w-4 h-4 flex items-center justify-center">
-                        <i className="fas fa-check text-white text-xs"></i>
+                      <div className="absolute top-1 right-1 bg-blue-500 rounded-full w-5 h-5 flex items-center justify-center">
+                        <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
                       </div>
                     )}
                   </div>
@@ -166,140 +132,154 @@ const SceneCard: React.FC<SceneCardProps> = ({ scene, index }) => {
             ) : null}
           </div>
           
-          {/* Step 3: Video Prompt Generation */}
-          <div className="border border-gray-200 rounded-md p-3">
+          {/* 3. 영상 프롬프트 생성 */}
+          <div className="border border-gray-200 rounded-lg p-4">
             <div className="flex justify-between items-center mb-2">
-              <h4 className="font-medium text-gray-800">3. 영상 프롬프트 생성</h4>
+              <h3 className="text-md font-medium">3. 영상 프롬프트 생성</h3>
               <button 
                 onClick={generateVideoPromptForScene}
                 disabled={!scene.selectedImage}
-                className={`px-3 py-1 rounded-md text-xs font-medium ${
+                className={`px-3 py-1 rounded-md text-sm ${
                   scene.selectedImage 
-                    ? 'bg-primary-500 text-white hover:bg-primary-600' 
-                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    ? 'bg-blue-500 text-white' 
+                    : 'bg-gray-200 text-gray-500 cursor-not-allowed'
                 }`}
               >
                 프롬프트 생성
               </button>
             </div>
             
-            {/* Video Prompt Loading */}
             {scene.loadingVideoPrompt ? (
-              <div className="animate-pulse flex items-center py-2">
-                <i className="fas fa-spinner fa-spin text-gray-400 mr-2"></i>
-                <span className="text-sm text-gray-500">영상 프롬프트 생성 중...</span>
+              <div className="flex items-center text-gray-500 text-sm py-2">
+                <span>영상 프롬프트 생성 중...</span>
               </div>
             ) : scene.videoPrompt ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="bg-gray-50 p-3 rounded text-sm">
                 <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">영상 프롬프트</label>
-                  <div className="bg-gray-50 p-2 rounded-md h-24 overflow-y-auto">
-                    <p className="text-xs font-mono text-gray-700">{scene.videoPrompt}</p>
-                  </div>
+                  <strong className="text-gray-700 block mb-1">영상 프롬프트:</strong>
+                  <p>{scene.videoPrompt}</p>
                 </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">Negative Prompt</label>
-                  <div className="bg-gray-50 p-2 rounded-md h-24 overflow-y-auto">
-                    <p className="text-xs font-mono text-gray-700">{scene.negativePrompt}</p>
+                {scene.negativePrompt && (
+                  <div className="mt-3">
+                    <strong className="text-gray-700 block mb-1">Negative 프롬프트:</strong>
+                    <p>{scene.negativePrompt}</p>
                   </div>
-                </div>
+                )}
               </div>
             ) : null}
           </div>
           
-          {/* Step 4: Video Generation - Always shown */}
-          <div className="border border-gray-200 rounded-md p-3">
+          {/* 4. 영상 생성 */}
+          <div className="border border-gray-200 rounded-lg p-4">
             <div className="flex justify-between items-center mb-2">
-              <h4 className="font-medium text-gray-800">4. 영상 생성</h4>
+              <h3 className="text-md font-medium">4. 영상 생성</h3>
               <button 
                 onClick={generateVideoForScene}
                 disabled={!scene.videoPrompt || !scene.selectedImage}
-                className={`px-3 py-1 rounded-md text-xs font-medium ${
+                className={`px-3 py-1 rounded-md text-sm ${
                   scene.videoPrompt && scene.selectedImage
-                    ? 'bg-primary-500 text-white hover:bg-primary-600' 
-                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    ? 'bg-blue-500 text-white' 
+                    : 'bg-gray-200 text-gray-500 cursor-not-allowed'
                 }`}
               >
                 영상 생성
               </button>
             </div>
-              
-            {/* Video Generation Status */}
+            
             {(scene as SceneWithVideo).loadingVideo ? (
-              <div className="animate-pulse flex items-center py-2">
-                <i className="fas fa-spinner fa-spin text-gray-400 mr-2"></i>
-                <span className="text-sm text-gray-500">영상 생성 요청 처리 중...</span>
+              <div className="flex items-center text-gray-500 text-sm py-2">
+                <span>영상 생성 요청 처리 중...</span>
               </div>
             ) : (scene as SceneWithVideo).videoStatus === 'pending' ? (
-              <div className="flex flex-col items-center py-2 space-y-2">
-                <div className="flex items-center">
-                  <i className="fas fa-clock text-amber-500 mr-2"></i>
-                  <span className="text-sm text-gray-700">영상 생성 진행 중... (30초~1분 소요)</span>
-                </div>
-                <div className="w-full max-w-md bg-gray-200 rounded-full h-2">
-                  <div className="bg-blue-600 h-2 rounded-full w-1/2 animate-pulse"></div>
+              <div className="text-center py-3">
+                <div className="text-amber-500 text-sm mb-2">영상 생성 진행 중... (30초~1분 소요)</div>
+                <div className="w-full h-2 bg-gray-200 rounded-full">
+                  <div className="w-1/2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
                 </div>
               </div>
             ) : (scene as SceneWithVideo).videoStatus === 'completed' && (scene as SceneWithVideo).thumbnailUrl ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
-                {/* 썸네일 이미지 */}
-                <div className="flex flex-col items-center">
-                  <div className="relative w-full max-w-[160px] aspect-[9/16] bg-gray-100 rounded-md overflow-hidden shadow-sm">
-                    <img 
-                      src={(scene as SceneWithVideo).thumbnailUrl} 
-                      alt="Video thumbnail" 
-                      className="w-full h-full object-cover"
-                    />
-                    <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-20 hover:bg-opacity-40 transition-all">
-                      <a 
-                        href={(scene as SceneWithVideo).videoUrl} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="text-white bg-primary-500 hover:bg-primary-600 rounded-full w-10 h-10 flex items-center justify-center"
-                      >
-                        <i className="fas fa-play"></i>
-                      </a>
+              <div className="flex items-center space-x-4">
+                <div className="relative w-28 aspect-[9/16] bg-gray-100 rounded overflow-hidden">
+                  <img 
+                    src={(scene as SceneWithVideo).thumbnailUrl} 
+                    alt="영상 썸네일" 
+                    className="w-full h-full object-cover"
+                  />
+                  <a 
+                    href={(scene as SceneWithVideo).videoUrl} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-30 hover:bg-opacity-40"
+                  >
+                    <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center">
+                      <svg className="w-4 h-4 text-blue-500" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z"></path>
+                      </svg>
                     </div>
-                  </div>
-                  <p className="text-xs text-gray-500 mt-1">클릭하여 영상 보기</p>
+                  </a>
                 </div>
-                
-                {/* 영상 정보 */}
                 <div>
-                  <div className="space-y-1">
-                    <h5 className="font-medium text-sm">세로형 영상 (9:16)</h5>
-                    <p className="text-xs text-gray-700">선택한 이미지를 기반으로 생성됨</p>
-                    <a 
-                      href={(scene as SceneWithVideo).videoUrl}
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center text-primary-600 hover:text-primary-700 text-xs"
-                    >
-                      <i className="fas fa-download mr-1"></i>
-                      <span>영상 다운로드</span>
-                    </a>
-                  </div>
+                  <div className="font-medium">세로형 영상 (9:16)</div>
+                  <a 
+                    href={(scene as SceneWithVideo).videoUrl}
+                    className="text-blue-500 text-sm hover:underline flex items-center mt-1"
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                  >
+                    <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    다운로드
+                  </a>
                 </div>
               </div>
             ) : (scene as SceneWithVideo).videoStatus === 'failed' ? (
-              <div className="text-center py-2">
-                <div className="text-red-500 mb-1">
-                  <i className="fas fa-exclamation-circle text-lg"></i>
-                </div>
-                <p className="text-sm text-gray-700">영상 생성 오류. 다시 시도해 주세요.</p>
+              <div className="text-center py-3 text-red-500">
+                영상 생성 중 오류가 발생했습니다. 다시 시도해 주세요.
               </div>
-            ) : (
-              <div className="py-2 text-center text-gray-600">
-                <p className="text-sm">이미지 선택 후 영상 프롬프트를 생성하세요.</p>
-                <p className="text-xs mt-1 text-gray-500">세로형(9:16) 영상으로 제작됩니다.</p>
-              </div>
-            )}
+            ) : null}
           </div>
         </div>
-      </div>
-    </div>
-  )
-}
+        
+        {/* 씬 컨트롤 */}
+        <div className="flex justify-between pt-2">
+          <button 
+            onClick={() => deleteScene(index)}
+            disabled={scenes.length <= 1}
+            className={`px-3 py-1 rounded-md text-sm ${
+              scenes.length > 1 
+                ? 'text-red-500 border border-red-500 hover:bg-red-50' 
+                : 'text-gray-400 border border-gray-300 cursor-not-allowed'
+            }`}
+          >
+            삭제
+          </button>
+          
+          <div className="flex space-x-2">
+            <button 
+              onClick={() => moveScene(-1)} 
+              disabled={index === 0}
+              className={`px-3 py-1 rounded-md text-sm border ${
+                index === 0 
+                  ? 'text-gray-400 border-gray-300 cursor-not-allowed' 
+                  : 'text-gray-700 border-gray-300 hover:bg-gray-50'
+              }`}
+            >
+              이전
+            </button>
+            <button 
+              onClick={() => moveScene(1)} 
+              disabled={index === scenes.length - 1}
+              className={`px-3 py-1 rounded-md text-sm border ${
+                index === scenes.length - 1 
+                  ? 'text-gray-400 border-gray-300 cursor-not-allowed' 
+                  : 'text-gray-700 border-gray-300 hover:bg-gray-50'
+              }`}
+            >
+              다음
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   )
