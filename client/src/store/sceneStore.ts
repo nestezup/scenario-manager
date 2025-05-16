@@ -31,6 +31,7 @@ interface SceneState {
   addScene: () => void
   deleteScene: (index: number) => void
   downloadJSON: () => void
+  downloadVideo: (videoUrl: string, fileName?: string) => Promise<boolean>
 }
 
 export const useSceneStore = create<SceneState>((set, get) => ({

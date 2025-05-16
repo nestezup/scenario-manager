@@ -76,18 +76,18 @@ const SceneCard: React.FC<SceneCardProps> = ({ scene, index }) => {
           </div>
           <div>
             <div className="font-medium">세로형 영상 (9:16)</div>
-            <a 
-              href={sceneWithVideo.videoUrl}
+            <button 
+              onClick={() => useSceneStore.getState().downloadVideo(
+                sceneWithVideo.videoUrl || '', 
+                `scene_${sceneWithVideo.id}_video.mp4`
+              )}
               className="text-blue-500 text-sm hover:underline flex items-center mt-1"
-              download="verticalVideo.mp4"
-              target="_blank" 
-              rel="noopener noreferrer"
             >
               <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
               </svg>
               다운로드
-            </a>
+            </button>
           </div>
         </div>
       )
