@@ -311,7 +311,8 @@ export const useSceneStore = create<SceneState>((set, get) => ({
           videoStatus: undefined,
           videoRequestId: undefined,
           videoUrl: undefined,
-          thumbnailUrl: undefined,
+          // 영상 생성전에 썸네일을 선택한 이미지로 미리 설정
+          thumbnailUrl: scene.selectedImage,
           videoRequestStartTime: Date.now()
         } : scene
       )
