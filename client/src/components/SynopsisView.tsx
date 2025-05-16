@@ -339,17 +339,25 @@ const SynopsisView: React.FC = () => {
     const scene = scenes.find(s => s.id === sceneId)
     if (!scene || !scene.videoPrompt || !scene.selectedImage) return
     
-    // Set loading state
+    console.log('영상 생성 요청 시작:', sceneId, scene.videoPrompt?.slice(0, 20))
+    
+    // Set loading state - 명시적으로 모든 필드 초기화
     setScenes(prevScenes => 
       prevScenes.map(s => 
         s.id === sceneId ? { 
           ...s, 
-          loadingVideo: true 
+          loadingVideo: true,
+          videoRequestId: undefined,
+          videoStatus: undefined,
+          videoUrl: undefined,
+          thumbnailUrl: undefined
         } : s
       )
     )
     
     try {
+      console.log('영상 생성 API 호출:', scene.selectedImage?.slice(0, 30))
+      
       // 실제 API 호출
       const response = await fetch('/api/generate-video', {
         method: 'POST',
@@ -368,21 +376,37 @@ const SynopsisView: React.FC = () => {
       }
       
       const data = await response.json()
+      console.log('영상 생성 응답 성공:', data)
       
-      // 영상 생성 요청 성공
-      setScenes(prevScenes => 
-        prevScenes.map(s => 
-          s.id === sceneId ? { 
-            ...s, 
+      // 영상 생성 요청 성공 - 명시적으로 모든 필드 업데이트
+      const updatedScenes = prevScenes => {
+        const newScenes = [...prevScenes]
+        const sceneIndex = newScenes.findIndex(s => s.id === sceneId)
+        
+        if (sceneIndex >= 0) {
+          newScenes[sceneIndex] = {
+            ...newScenes[sceneIndex],
             loadingVideo: false,
             videoRequestId: data.request_id,
             videoStatus: 'pending'
-          } : s
-        )
-      )
+          }
+        }
+        
+        console.log('영상 생성 상태 업데이트:', newScenes[sceneIndex])
+        return newScenes
+      }
       
-      // 비디오 상태 주기적으로 확인 시작
-      setTimeout(() => checkVideoStatus(sceneId), 3000)
+      setScenes(updatedScenes)
+      
+      // 디버깅을 위해 바로 현재 상태 확인
+      console.log('영상 상태 확인 설정됨. 3초 후 실행')
+      
+      // 비디오 상태 주기적으로 확인 시작 - 직접 request_id 전달
+      setTimeout(() => {
+        console.log('영상 상태 확인 타이머 실행')
+        // 상태 변경 후 직접 상태 확인 (scenes 상태가 불확실할 수 있음)
+        checkVideoStatusDirect(sceneId, data.request_id)
+      }, 3000)
       
     } catch (error) {
       console.error('영상 생성 요청 중 오류:', error)
@@ -399,6 +423,68 @@ const SynopsisView: React.FC = () => {
       )
       
       alert('영상 생성 요청 중 오류가 발생했습니다.')
+    }
+  }
+  
+  // 직접 request_id를 사용하는 상태 확인 함수
+  const checkVideoStatusDirect = async (sceneId: number, requestId: string) => {
+    console.log('직접 비디오 상태 확인 시작:', sceneId, requestId)
+    
+    try {
+      // 실제 API 호출
+      const response = await fetch('/api/check-video-status', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          request_id: requestId
+        })
+      })
+      
+      if (!response.ok) {
+        throw new Error('영상 상태 확인 중 오류가 발생했습니다.')
+      }
+      
+      const data = await response.json()
+      console.log('직접 비디오 상태 확인 응답:', data)
+      
+      if (data.status === 'completed') {
+        // 영상 생성 완료
+        console.log('비디오 생성 완료!', data.video_url)
+        setScenes(prevScenes => 
+          prevScenes.map(s => 
+            s.id === sceneId ? { 
+              ...s, 
+              videoStatus: 'completed',
+              videoUrl: data.video_url,
+              thumbnailUrl: data.thumbnail_url
+            } : s
+          )
+        )
+      } else if (data.status === 'failed') {
+        // 영상 생성 실패
+        console.log('비디오 생성 실패')
+        setScenes(prevScenes => 
+          prevScenes.map(s => 
+            s.id === sceneId ? { 
+              ...s, 
+              videoStatus: 'failed'
+            } : s
+          )
+        )
+      } else {
+        // 아직 처리 중, 계속 상태 확인
+        console.log('비디오 생성 아직 진행 중, 3초 후 다시 확인')
+        setTimeout(() => checkVideoStatusDirect(sceneId, requestId), 3000)
+      }
+      
+    } catch (error) {
+      console.error('영상 상태 확인 중 오류:', error)
+      
+      // 오류가 발생해도 재시도
+      console.log('비디오 상태 확인 오류, 5초 후 재시도')
+      setTimeout(() => checkVideoStatusDirect(sceneId, requestId), 5000)
     }
   }
   
