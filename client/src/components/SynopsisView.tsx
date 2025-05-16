@@ -919,12 +919,15 @@ const SynopsisView: React.FC = () => {
                         </div>
                       ) : scenes[activeSceneIndex].videoStatus === 'completed' && scenes[activeSceneIndex].thumbnailUrl ? (
                         <div className="flex items-center space-x-4">
-                          <div className="relative w-28 aspect-[9/16] bg-gray-100 rounded overflow-hidden">
-                            <img 
-                              src={scenes[activeSceneIndex].thumbnailUrl} 
-                              alt="영상 썸네일" 
-                              className="w-full h-full object-cover"
-                            />
+                          <div className="relative w-32 bg-gray-100 rounded overflow-hidden">
+                            <div className="aspect-[9/16] w-full flex items-center justify-center">
+                              <img 
+                                src={scenes[activeSceneIndex].thumbnailUrl} 
+                                alt="영상 썸네일" 
+                                className="w-full h-full object-contain"
+                                style={{ maxHeight: '100%', maxWidth: '100%' }}
+                              />
+                            </div>
                             <a 
                               href={scenes[activeSceneIndex].videoUrl} 
                               target="_blank" 
