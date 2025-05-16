@@ -4,23 +4,8 @@ import SynopsisForm from './SynopsisForm'
 import SceneCard from './SceneCard'
 import SceneNavigation from './SceneNavigation'
 import VideoProgress from './VideoProgress'
-import { SceneWithVideo } from '../types'
+import { Scene, SceneWithVideo } from '../types'
 import { useToast } from '../hooks/use-toast'
-
-interface Scene {
-  id: number
-  text: string
-  order: number
-  imagePrompt?: string
-  images?: string[]
-  selectedImageIndex?: number | null
-  selectedImage?: string | null
-  videoPrompt?: string
-  negativePrompt?: string
-  loadingImagePrompt?: boolean
-  loadingImages?: boolean
-  loadingVideoPrompt?: boolean
-}
 
 // Mock data arrays for demo purposes
 const sceneStarters = [
@@ -949,20 +934,19 @@ const SynopsisView: React.FC = () => {
                             <div className="font-medium">세로형 영상 (9:16)</div>
                             <button 
                               onClick={async () => {
-                                const success = await useSceneStore.getState().downloadVideo(
-                                  scenes[activeSceneIndex].videoUrl || '', 
-                                  `scene_${scenes[activeSceneIndex].id}_video.mp4`
-                                );
-                                if (success) {
-                                  useToast().toast({
-                                    message: '영상이 다운로드되었습니다.',
-                                    type: 'success'
-                                  });
-                                } else {
-                                  useToast().toast({
-                                    message: '영상 다운로드 중 오류가 발생했습니다.',
-                                    type: 'error'
-                                  });
+                                try {
+                                  const success = await useSceneStore.getState().downloadVideo(
+                                    scenes[activeSceneIndex].videoUrl || '', 
+                                    `scene_${scenes[activeSceneIndex].id}_video.mp4`
+                                  );
+                                  // 성공/실패 메시지는 콘솔에 표시
+                                  if (success) {
+                                    console.log('영상이 다운로드되었습니다.');
+                                  } else {
+                                    console.error('영상 다운로드 중 오류가 발생했습니다.');
+                                  }
+                                } catch (error) {
+                                  console.error('다운로드 오류:', error);
                                 }
                               }}
                               className="text-blue-500 text-sm hover:underline flex items-center mt-1"
