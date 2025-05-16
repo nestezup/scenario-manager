@@ -829,11 +829,16 @@ const SynopsisView: React.FC = () => {
                                 scenes[activeSceneIndex].selectedImageIndex === idx ? 'ring-2 ring-blue-500 ring-offset-2' : ''
                               }`}
                             >
-                              <img 
-                                src={image} 
-                                alt={`Scene ${activeSceneIndex + 1} option ${idx + 1}`} 
-                                className="w-full h-24 object-cover"
-                              />
+                              <div className="aspect-[9/16] w-full flex items-center justify-center bg-gray-50">
+                                <div className="h-full w-full">
+                                  <img 
+                                    src={image} 
+                                    alt={`Scene ${activeSceneIndex + 1} option ${idx + 1}`} 
+                                    className="h-full w-full object-contain"
+                                    style={{ maxHeight: '100%', maxWidth: '100%' }}
+                                  />
+                                </div>
+                              </div>
                               {scenes[activeSceneIndex].selectedImageIndex === idx && (
                                 <div className="absolute top-1 right-1 bg-blue-500 rounded-full w-5 h-5 flex items-center justify-center">
                                   <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
