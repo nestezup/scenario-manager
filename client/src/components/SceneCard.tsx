@@ -169,7 +169,7 @@ const SceneCard: React.FC<SceneCardProps> = ({ scene, index }) => {
             ) : null}
           </div>
           
-          {/* 4. 영상 생성 */}
+          {/* 4. 영상 생성 - 항상 표시 */}
           <div className="border border-gray-200 rounded-md p-4">
             <div className="flex justify-between items-center">
               <h3 className="text-md font-medium">4. 영상 생성</h3>
@@ -186,58 +186,65 @@ const SceneCard: React.FC<SceneCardProps> = ({ scene, index }) => {
               </button>
             </div>
             
-            {(scene as SceneWithVideo).loadingVideo ? (
-              <div className="flex items-center text-gray-500 text-sm py-2 mt-2">
-                <span>영상 생성 요청 처리 중...</span>
-              </div>
-            ) : (scene as SceneWithVideo).videoStatus === 'pending' ? (
-              <div className="text-center py-3 mt-2">
-                <div className="text-amber-500 text-sm mb-2">영상 생성 진행 중... (30초~1분 소요)</div>
-                <div className="w-full h-2 bg-gray-200 rounded-full">
-                  <div className="w-1/2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+            {/* 영상 생성 UI - 항상 표시하도록 개선 */}
+            <div className="mt-2">
+              {(scene as SceneWithVideo).loadingVideo ? (
+                <div className="flex items-center text-gray-500 text-sm py-2">
+                  <span>영상 생성 요청 처리 중...</span>
                 </div>
-              </div>
-            ) : (scene as SceneWithVideo).videoStatus === 'completed' && (scene as SceneWithVideo).thumbnailUrl ? (
-              <div className="flex items-center space-x-4 mt-2">
-                <div className="relative w-28 aspect-[9/16] bg-gray-100 rounded overflow-hidden">
-                  <img 
-                    src={(scene as SceneWithVideo).thumbnailUrl} 
-                    alt="영상 썸네일" 
-                    className="w-full h-full object-cover"
-                  />
-                  <a 
-                    href={(scene as SceneWithVideo).videoUrl} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-30 hover:bg-opacity-40"
-                  >
-                    <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center">
-                      <svg className="w-4 h-4 text-blue-500" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z"></path>
+              ) : (scene as SceneWithVideo).videoStatus === 'pending' ? (
+                <div className="text-center py-3">
+                  <div className="text-amber-500 text-sm mb-2">영상 생성 진행 중... (30초~1분 소요)</div>
+                  <div className="w-full h-2 bg-gray-200 rounded-full">
+                    <div className="w-1/2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+                  </div>
+                </div>
+              ) : (scene as SceneWithVideo).videoStatus === 'completed' && (scene as SceneWithVideo).thumbnailUrl ? (
+                <div className="flex items-center space-x-4">
+                  <div className="relative w-28 aspect-[9/16] bg-gray-100 rounded overflow-hidden">
+                    <img 
+                      src={(scene as SceneWithVideo).thumbnailUrl} 
+                      alt="영상 썸네일" 
+                      className="w-full h-full object-cover"
+                    />
+                    <a 
+                      href={(scene as SceneWithVideo).videoUrl} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-30 hover:bg-opacity-40"
+                    >
+                      <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center">
+                        <svg className="w-4 h-4 text-blue-500" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                          <path d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z"></path>
+                        </svg>
+                      </div>
+                    </a>
+                  </div>
+                  <div>
+                    <div className="font-medium">세로형 영상 (9:16)</div>
+                    <a 
+                      href={(scene as SceneWithVideo).videoUrl}
+                      className="text-blue-500 text-sm hover:underline flex items-center mt-1"
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                    >
+                      <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                       </svg>
-                    </div>
-                  </a>
+                      다운로드
+                    </a>
+                  </div>
                 </div>
-                <div>
-                  <div className="font-medium">세로형 영상 (9:16)</div>
-                  <a 
-                    href={(scene as SceneWithVideo).videoUrl}
-                    className="text-blue-500 text-sm hover:underline flex items-center mt-1"
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                  >
-                    <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                    </svg>
-                    다운로드
-                  </a>
+              ) : (scene as SceneWithVideo).videoStatus === 'failed' ? (
+                <div className="text-center py-3 text-red-500">
+                  영상 생성 중 오류가 발생했습니다. 다시 시도해 주세요.
                 </div>
-              </div>
-            ) : (scene as SceneWithVideo).videoStatus === 'failed' ? (
-              <div className="text-center py-3 text-red-500 mt-2">
-                영상 생성 중 오류가 발생했습니다. 다시 시도해 주세요.
-              </div>
-            ) : null}
+              ) : (
+                <div className="text-center py-3 text-gray-500 text-sm">
+                  <p>이미지를 선택하고 영상 프롬프트를 생성한 후 영상 생성을 시작하세요.</p>
+                </div>
+              )}
+            </div>
           </div>
         </div>
         
