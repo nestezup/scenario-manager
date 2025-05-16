@@ -1,4 +1,10 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
+import { useSceneStore } from '../store/sceneStore'
+import SynopsisForm from './SynopsisForm'
+import SceneCard from './SceneCard'
+import SceneNavigation from './SceneNavigation'
+import VideoProgress from './VideoProgress'
+import { SceneWithVideo } from '../types'
 
 interface Scene {
   id: number
@@ -912,27 +918,7 @@ const SynopsisView: React.FC = () => {
                         </div>
                       ) : scenes[activeSceneIndex].videoStatus === 'pending' ? (
                         <div className="text-center py-3">
-                          {/* 진행 시간에 따라 애니메이션 다르게 표시 */}
-                          {(() => {
-                            const scene = scenes[activeSceneIndex] as SceneWithVideo;
-                            const startTime = scene.videoRequestStartTime || 0;
-                            const elapsed = startTime ? Math.floor((Date.now() - startTime) / 1000) : 0;
-                            const dots = '.'.repeat(elapsed % 6 + 1); // 1~6개의 점을 번갈아 표시
-                            const progress = Math.min(elapsed / 60 * 100, 95); // 최대 95%까지만 표시 (60초 기준)
-                            
-                            return (
-                              <>
-                                <div className="text-amber-500 text-sm mb-2">영상 생성 진행 중{dots} (30초~1분 소요)</div>
-                                <div className="w-full h-2 bg-gray-200 rounded-full">
-                                  <div 
-                                    className="h-2 bg-blue-500 rounded-full transition-all duration-500" 
-                                    style={{ width: `${progress}%` }}
-                                  ></div>
-                                </div>
-                                <div className="text-xs text-gray-500 mt-1">{elapsed}초 경과</div>
-                              </>
-                            );
-                          })()}
+                          <VideoProgress scene={scenes[activeSceneIndex] as SceneWithVideo} />
                         </div>
                       ) : scenes[activeSceneIndex].videoStatus === 'completed' && scenes[activeSceneIndex].thumbnailUrl ? (
                         <div className="flex items-center space-x-4">
