@@ -139,9 +139,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Dify API 응답의 text 필드에서 JSON 문자열 파싱
       const imagePromptData = JSON.parse(difyData.data.outputs.text);
       
-      // 프롬프트에서 --ar 16:9를 --ar 9:16으로 변경
+      // 프롬프트에서 --ar 16:9 제거 (API에서 이미 aspect_ratio: "9:16"로 설정됨)
       if (imagePromptData.prompt) {
-        imagePromptData.prompt = imagePromptData.prompt.replace(/--ar 16:9/g, "--ar 9:16");
+        imagePromptData.prompt = imagePromptData.prompt.replace(/--ar 16:9/g, "");
         console.log("수정된 이미지 프롬프트:", imagePromptData.prompt);
       }
 
