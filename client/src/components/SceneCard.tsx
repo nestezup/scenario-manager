@@ -77,10 +77,19 @@ const SceneCard: React.FC<SceneCardProps> = ({ scene, index }) => {
           <div>
             <div className="font-medium">세로형 영상 (9:16)</div>
             <button 
-              onClick={() => useSceneStore.getState().downloadVideo(
-                sceneWithVideo.videoUrl || '', 
-                `scene_${sceneWithVideo.id}_video.mp4`
-              )}
+              onClick={async () => {
+                const success = await useSceneStore.getState().downloadVideo(
+                  sceneWithVideo.videoUrl || '', 
+                  `scene_${sceneWithVideo.id}_video.mp4`
+                );
+                if (success) {
+                  // 성공 메시지 (옵션)
+                  console.log('영상이 다운로드되었습니다.');
+                } else {
+                  // 실패 메시지 (옵션)
+                  console.log('영상 다운로드 중 오류가 발생했습니다.');
+                }
+              }}
               className="text-blue-500 text-sm hover:underline flex items-center mt-1"
             >
               <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
