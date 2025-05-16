@@ -79,6 +79,7 @@ const SceneCard: React.FC<SceneCardProps> = ({ scene, index }) => {
             <a 
               href={sceneWithVideo.videoUrl}
               className="text-blue-500 text-sm hover:underline flex items-center mt-1"
+              download="verticalVideo.mp4"
               target="_blank" 
               rel="noopener noreferrer"
             >

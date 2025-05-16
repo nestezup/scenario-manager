@@ -949,6 +949,7 @@ const SynopsisView: React.FC = () => {
                             <a 
                               href={scenes[activeSceneIndex].videoUrl}
                               className="text-blue-500 text-sm hover:underline flex items-center mt-1"
+                              download="verticalVideo.mp4"
                               target="_blank" 
                               rel="noopener noreferrer"
                             >
