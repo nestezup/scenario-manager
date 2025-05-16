@@ -71,4 +71,5 @@ export interface SceneWithVideo extends Scene {
   videoUrl?: string
   thumbnailUrl?: string
   loadingVideo?: boolean
+  videoRequestStartTime?: number
 }

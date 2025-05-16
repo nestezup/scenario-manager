@@ -1,6 +1,6 @@
 import { create } from 'zustand'
-import { Scene, ParseScenesResponse } from '../types'
-import { generateImagePrompt, generateImages, describeImage } from '../api'
+import { Scene, ParseScenesResponse, SceneWithVideo } from '../types'
+import { generateImagePrompt, generateImages, describeImage, generateVideo, checkVideoStatus } from '../api'
 
 interface SceneState {
   step: 'input' | 'processing' | 'scenes'
@@ -25,6 +25,8 @@ interface SceneState {
   generateImagesForScene: () => Promise<void>
   selectImage: (index: number) => void
   generateVideoPromptForScene: () => Promise<void>
+  generateVideoForScene: () => Promise<void>
+  checkVideoStatus: () => Promise<void>
   moveScene: (direction: number) => void
   addScene: () => void
   deleteScene: (index: number) => void
@@ -58,7 +60,7 @@ export const useSceneStore = create<SceneState>((set, get) => ({
   },
   
   get isAnySceneCompleted() {
-    return get().scenes.some(scene => scene.videoPrompt)
+    return get().scenes.some(scene => scene.videoPrompt && (scene as SceneWithVideo).videoUrl)
   },
   
   get activeScene() {
@@ -293,6 +295,144 @@ export const useSceneStore = create<SceneState>((set, get) => ({
     })
   },
   
+  generateVideoForScene: async () => {
+    const { activeSceneIndex, activeScene } = get()
+    
+    if (!activeScene || !activeScene.videoPrompt || !activeScene.selectedImage || activeSceneIndex === null) {
+      return
+    }
+    
+    // Update loading state
+    set(state => ({
+      scenes: state.scenes.map((scene, i) => 
+        i === activeSceneIndex ? { 
+          ...scene, 
+          loadingVideo: true,
+          videoStatus: undefined,
+          videoRequestId: undefined,
+          videoUrl: undefined,
+          thumbnailUrl: undefined,
+          videoRequestStartTime: Date.now()
+        } : scene
+      )
+    }))
+    
+    try {
+      // 영상 생성 요청 보내기
+      const response = await generateVideo({
+        image_url: activeScene.selectedImage,
+        video_prompt: activeScene.videoPrompt,
+        negative_prompt: activeScene.negativePrompt
+      })
+      
+      console.log('Video generation request:', response)
+      
+      // 요청 ID 저장
+      set(state => ({
+        scenes: state.scenes.map((scene, i) => 
+          i === activeSceneIndex ? { 
+            ...scene, 
+            loadingVideo: false,
+            videoRequestId: response.request_id,
+            videoStatus: 'pending'
+          } : scene
+        )
+      }))
+      
+      // 상태 확인 시작 (요청 후 자동으로 상태 확인)
+      setTimeout(() => {
+        get().checkVideoStatus()
+      }, 2000) // 2초 후 첫 상태 확인
+      
+    } catch (error) {
+      console.error('Error generating video:', error)
+      
+      // 오류 상태 설정
+      set(state => ({
+        scenes: state.scenes.map((scene, i) => 
+          i === activeSceneIndex ? { 
+            ...scene, 
+            loadingVideo: false,
+            videoStatus: 'failed'
+          } : scene
+        )
+      }))
+    }
+  },
+  
+  checkVideoStatus: async () => {
+    const { activeSceneIndex, activeScene } = get()
+    
+    if (!activeSceneIndex || !activeScene) {
+      return
+    }
+    
+    // 비디오 요청 상태 확인을 위해 확장된 타입으로 변환
+    const sceneWithVideo = activeScene as SceneWithVideo
+    
+    if (!sceneWithVideo.videoRequestId || sceneWithVideo.videoStatus !== 'pending') {
+      return
+    }
+    
+    try {
+      // 상태 확인 API 호출
+      const response = await checkVideoStatus({
+        request_id: sceneWithVideo.videoRequestId
+      })
+      
+      console.log('Video status check:', response)
+      
+      if (response.status === 'completed' && response.video_url) {
+        // 완료 - 영상 및 썸네일 URL 저장
+        set(state => ({
+          scenes: state.scenes.map((scene, i) => 
+            i === activeSceneIndex ? { 
+              ...scene, 
+              videoStatus: 'completed',
+              videoUrl: response.video_url,
+              thumbnailUrl: response.thumbnail_url
+            } : scene
+          )
+        }))
+      } else if (response.status === 'failed') {
+        // 실패
+        set(state => ({
+          scenes: state.scenes.map((scene, i) => 
+            i === activeSceneIndex ? { 
+              ...scene, 
+              videoStatus: 'failed'
+            } : scene
+          )
+        }))
+      } else {
+        // 여전히 처리 중 - 15초 후 다시 확인
+        setTimeout(() => {
+          get().checkVideoStatus()
+        }, 15000)
+      }
+    } catch (error) {
+      console.error('Error checking video status:', error)
+      
+      // 오류시에도 재시도 (최대 3분)
+      const totalTime = Date.now() - (sceneWithVideo.videoRequestStartTime || Date.now())
+      if (totalTime < 3 * 60 * 1000) { // 3분 이내라면 재시도
+        setTimeout(() => {
+          get().checkVideoStatus()
+        }, 15000)
+      } else {
+        // 3분 초과시 실패로 처리
+        set(state => ({
+          scenes: state.scenes.map((scene, i) => 
+            i === activeSceneIndex ? { 
+              ...scene, 
+              videoStatus: 'failed'
+            } : scene
+          )
+        }))
+      }
+    }
+  },
+  
   downloadJSON: () => {
     const { scenes, isAnySceneCompleted } = get()
     
@@ -301,14 +441,15 @@ export const useSceneStore = create<SceneState>((set, get) => ({
     }
     
     const output = scenes
-      .filter(scene => scene.videoPrompt)
+      .filter(scene => scene.videoPrompt && (scene as SceneWithVideo).videoUrl)
       .map(scene => ({
         scene_id: scene.id,
         scene_text: scene.text,
         image_prompt: scene.imagePrompt || '',
         selected_image: scene.selectedImage || '',
         video_prompt: scene.videoPrompt || '',
-        negative_prompt: scene.negativePrompt || ''
+        negative_prompt: scene.negativePrompt || '',
+        video_url: (scene as SceneWithVideo).videoUrl || ''
       }))
     
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(output, null, 2))
