@@ -405,9 +405,20 @@ const SynopsisView: React.FC = () => {
   // Check video generation status
   const checkVideoStatus = async (sceneId: number) => {
     const scene = scenes.find(s => s.id === sceneId)
-    if (!scene || !scene.videoRequestId || scene.videoStatus !== 'pending') return
+    if (!scene) return
+    
+    // 디버깅을 위한 로그 추가
+    console.log('비디오 상태 확인 시작:', sceneId, scene.videoRequestId, scene.videoStatus)
+    
+    // 요청 ID가 없거나 pending 상태가 아니면 확인 중단
+    if (!scene.videoRequestId || scene.videoStatus !== 'pending') {
+      console.log('비디오 상태 확인 중단: 조건 불일치', scene.videoRequestId, scene.videoStatus)
+      return
+    }
     
     try {
+      console.log('비디오 상태 확인 API 호출:', scene.videoRequestId)
+      
       // 실제 API 호출
       const response = await fetch('/api/check-video-status', {
         method: 'POST',
@@ -424,9 +435,11 @@ const SynopsisView: React.FC = () => {
       }
       
       const data = await response.json()
+      console.log('비디오 상태 확인 응답:', data)
       
       if (data.status === 'completed') {
         // 영상 생성 완료
+        console.log('비디오 생성 완료!', data.video_url)
         setScenes(prevScenes => 
           prevScenes.map(s => 
             s.id === sceneId ? { 
@@ -439,6 +452,7 @@ const SynopsisView: React.FC = () => {
         )
       } else if (data.status === 'failed') {
         // 영상 생성 실패
+        console.log('비디오 생성 실패')
         setScenes(prevScenes => 
           prevScenes.map(s => 
             s.id === sceneId ? { 
@@ -449,6 +463,7 @@ const SynopsisView: React.FC = () => {
         )
       } else {
         // 아직 처리 중, 계속 상태 확인
+        console.log('비디오 생성 아직 진행 중, 3초 후 다시 확인')
         setTimeout(() => checkVideoStatus(sceneId), 3000)
       }
       
@@ -456,6 +471,7 @@ const SynopsisView: React.FC = () => {
       console.error('영상 상태 확인 중 오류:', error)
       
       // 오류가 발생해도 재시도
+      console.log('비디오 상태 확인 오류, 5초 후 재시도')
       setTimeout(() => checkVideoStatus(sceneId), 5000)
     }
   }
