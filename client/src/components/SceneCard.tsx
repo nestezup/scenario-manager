@@ -135,12 +135,15 @@ const SceneCard: React.FC<SceneCardProps> = ({ scene, index }) => {
                     scene.selectedImageIndex === idx ? 'ring-2 ring-blue-500' : ''
                   }`}
                 >
-                  <div className="aspect-[9/16] w-full overflow-hidden">
-                    <img 
-                      src={image} 
-                      className="w-full h-full object-contain" 
-                      alt={`Scene ${index + 1} image option ${idx + 1}`}
-                    />
+                  <div className="aspect-[9/16] w-full flex items-center justify-center bg-gray-50">
+                    <div className="h-full w-full">
+                      <img 
+                        src={image} 
+                        className="h-full w-full object-contain" 
+                        alt={`Scene ${index + 1} image option ${idx + 1}`}
+                        style={{ maxHeight: '100%', maxWidth: '100%' }}
+                      />
+                    </div>
                   </div>
                   {scene.selectedImageIndex === idx && (
                     <div className="absolute top-1 right-1 bg-blue-500 rounded-full w-5 h-5 flex items-center justify-center">
