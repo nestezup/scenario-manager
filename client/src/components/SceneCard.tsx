@@ -138,7 +138,7 @@ const SceneCard: React.FC<SceneCardProps> = ({ scene, index }) => {
                   <div className="aspect-[9/16] w-full overflow-hidden">
                     <img 
                       src={image} 
-                      className="w-full h-full object-cover" 
+                      className="w-full h-full object-contain" 
                       alt={`Scene ${index + 1} image option ${idx + 1}`}
                     />
                   </div>
@@ -226,24 +226,26 @@ const SceneCard: React.FC<SceneCardProps> = ({ scene, index }) => {
             </div>
           ) : sceneWithVideo.videoStatus === 'completed' && sceneWithVideo.thumbnailUrl ? (
             <div className="flex items-center space-x-4">
-              <div className="relative w-28 aspect-[9/16] bg-gray-100 rounded overflow-hidden">
-                <img 
-                  src={sceneWithVideo.thumbnailUrl} 
-                  alt="영상 썸네일" 
-                  className="w-full h-full object-cover"
-                />
-                <a 
-                  href={sceneWithVideo.videoUrl} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-30 hover:bg-opacity-40"
-                >
-                  <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center">
-                    <svg className="w-4 h-4 text-blue-500" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z"></path>
-                    </svg>
-                  </div>
-                </a>
+              <div className="relative w-32 bg-gray-100 rounded overflow-hidden">
+                <div className="aspect-[9/16] w-full">
+                  <img 
+                    src={sceneWithVideo.thumbnailUrl} 
+                    alt="영상 썸네일" 
+                    className="w-full h-full object-contain"
+                  />
+                  <a 
+                    href={sceneWithVideo.videoUrl} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-30 hover:bg-opacity-40"
+                  >
+                    <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center">
+                      <svg className="w-5 h-5 text-blue-500" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z"></path>
+                      </svg>
+                    </div>
+                  </a>
+                </div>
               </div>
               <div>
                 <div className="font-medium">세로형 영상 (9:16)</div>
