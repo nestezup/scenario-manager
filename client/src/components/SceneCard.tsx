@@ -206,84 +206,93 @@ const SceneCard: React.FC<SceneCardProps> = ({ scene, index }) => {
               </div>
             ) : null}
           </div>
-          
-          {/* Step 4: Generate Video (Always show if video prompt is available) */}
-          <div className="border border-gray-200 rounded-md p-4 md:col-span-2 mt-4">
-            <div className="flex justify-between items-center mb-3">
-              <h4 className="font-medium text-gray-800">4. 영상 생성 (세로형 9:16 비율)</h4>
-              <button 
-                onClick={generateVideoForScene}
-                className="px-2 py-1 rounded-md text-xs font-medium bg-primary-500 text-white hover:bg-primary-600"
-              >
-                영상 생성하기
-              </button>
+        </div>
+        
+        {/* Step 4: Video Generation - Always visible as a separate section */}
+        <div className="border border-gray-200 rounded-md p-4 mt-6">
+          <div className="flex justify-between items-center mb-3">
+            <h4 className="font-medium text-gray-800">4. 영상 생성 (세로형 9:16 비율)</h4>
+            <button 
+              onClick={generateVideoForScene}
+              disabled={!scene.videoPrompt || !scene.selectedImage}
+              className={`px-2 py-1 rounded-md text-xs font-medium ${
+                scene.videoPrompt && scene.selectedImage
+                  ? 'bg-primary-500 text-white hover:bg-primary-600' 
+                  : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+              }`}
+            >
+              영상 생성하기
+            </button>
+          </div>
+            
+          {/* Video Generation Status */}
+          {(scene as SceneWithVideo).loadingVideo ? (
+            <div className="animate-pulse flex items-center py-2">
+              <i className="fas fa-spinner fa-spin text-gray-400 mr-2"></i>
+              <span className="text-sm text-gray-500">영상 생성 요청 처리 중...</span>
             </div>
+          ) : (scene as SceneWithVideo).videoStatus === 'pending' ? (
+            <div className="flex flex-col items-center py-4 space-y-2">
+              <div className="flex items-center">
+                <i className="fas fa-clock text-amber-500 mr-2"></i>
+                <span className="text-sm text-gray-700">영상 생성 진행 중... (30초~1분 소요)</span>
+              </div>
+              <div className="w-full max-w-md bg-gray-200 rounded-full h-2.5">
+                <div className="bg-blue-600 h-2.5 rounded-full w-1/2 animate-pulse"></div>
+              </div>
+            </div>
+          ) : (scene as SceneWithVideo).videoStatus === 'completed' && (scene as SceneWithVideo).thumbnailUrl ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+              {/* 썸네일 이미지 */}
+              <div className="flex flex-col items-center">
+                <div className="relative w-full max-w-[200px] aspect-[9/16] bg-gray-100 rounded-md overflow-hidden shadow-md">
+                  <img 
+                    src={(scene as SceneWithVideo).thumbnailUrl} 
+                    alt="Video thumbnail" 
+                    className="w-full h-full object-cover"
+                  />
+                  <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-20 hover:bg-opacity-40 transition-all">
+                    <a 
+                      href={(scene as SceneWithVideo).videoUrl} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-white bg-primary-500 hover:bg-primary-600 rounded-full w-12 h-12 flex items-center justify-center"
+                    >
+                      <i className="fas fa-play"></i>
+                    </a>
+                  </div>
+                </div>
+                <p className="text-xs text-gray-500 mt-2">영상을 클릭하여 보기</p>
+              </div>
               
-              {/* Video Generation Status */}
-              {(scene as SceneWithVideo).loadingVideo ? (
-                <div className="animate-pulse flex items-center py-2">
-                  <i className="fas fa-spinner fa-spin text-gray-400 mr-2"></i>
-                  <span className="text-sm text-gray-500">영상 생성 요청 처리 중...</span>
+              {/* 영상 정보 */}
+              <div>
+                <div className="space-y-2">
+                  <h5 className="font-medium">세로형 영상 (9:16)</h5>
+                  <p className="text-sm text-gray-700">선택한 이미지를 기반으로 영상을 생성했습니다.</p>
+                  <a 
+                    href={(scene as SceneWithVideo).videoUrl}
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center text-primary-600 hover:text-primary-700"
+                  >
+                    <i className="fas fa-download mr-1"></i>
+                    <span>영상 다운로드</span>
+                  </a>
                 </div>
-              ) : (scene as SceneWithVideo).videoStatus === 'pending' ? (
-                <div className="flex flex-col items-center py-4 space-y-2">
-                  <div className="flex items-center">
-                    <i className="fas fa-clock text-amber-500 mr-2"></i>
-                    <span className="text-sm text-gray-700">영상 생성 진행 중... (30초~1분 소요)</span>
-                  </div>
-                  <div className="w-full max-w-md bg-gray-200 rounded-full h-2.5">
-                    <div className="bg-blue-600 h-2.5 rounded-full w-1/2 animate-pulse"></div>
-                  </div>
-                </div>
-              ) : (scene as SceneWithVideo).videoStatus === 'completed' && (scene as SceneWithVideo).thumbnailUrl ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
-                  {/* 썸네일 이미지 */}
-                  <div className="flex flex-col items-center">
-                    <div className="relative w-full max-w-[200px] aspect-[9/16] bg-gray-100 rounded-md overflow-hidden shadow-md">
-                      <img 
-                        src={(scene as SceneWithVideo).thumbnailUrl} 
-                        alt="Video thumbnail" 
-                        className="w-full h-full object-cover"
-                      />
-                      <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-20 hover:bg-opacity-40 transition-all">
-                        <a 
-                          href={(scene as SceneWithVideo).videoUrl} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="text-white bg-primary-500 hover:bg-primary-600 rounded-full w-12 h-12 flex items-center justify-center"
-                        >
-                          <i className="fas fa-play"></i>
-                        </a>
-                      </div>
-                    </div>
-                    <p className="text-xs text-gray-500 mt-2">영상을 클릭하여 보기</p>
-                  </div>
-                  
-                  {/* 영상 정보 */}
-                  <div>
-                    <div className="space-y-2">
-                      <h5 className="font-medium">세로형 영상 (9:16)</h5>
-                      <p className="text-sm text-gray-700">선택한 이미지를 기반으로 영상을 생성했습니다.</p>
-                      <a 
-                        href={(scene as SceneWithVideo).videoUrl}
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center text-primary-600 hover:text-primary-700"
-                      >
-                        <i className="fas fa-download mr-1"></i>
-                        <span>영상 다운로드</span>
-                      </a>
-                    </div>
-                  </div>
-                </div>
-              ) : (scene as SceneWithVideo).videoStatus === 'failed' ? (
-                <div className="text-center py-4">
-                  <div className="text-red-500 mb-2">
-                    <i className="fas fa-exclamation-circle text-xl"></i>
-                  </div>
-                  <p className="text-sm text-gray-700">영상 생성 중 오류가 발생했습니다. 다시 시도해 주세요.</p>
-                </div>
-              ) : null}
+              </div>
+            </div>
+          ) : (scene as SceneWithVideo).videoStatus === 'failed' ? (
+            <div className="text-center py-4">
+              <div className="text-red-500 mb-2">
+                <i className="fas fa-exclamation-circle text-xl"></i>
+              </div>
+              <p className="text-sm text-gray-700">영상 생성 중 오류가 발생했습니다. 다시 시도해 주세요.</p>
+            </div>
+          ) : (
+            <div className="py-4 text-center text-gray-600">
+              <p>이미지를 선택하고 영상 프롬프트를 생성한 후 영상 생성을 시작하세요.</p>
+              <p className="text-xs mt-2 text-gray-500">세로형(9:16) 영상으로 생성됩니다.</p>
             </div>
           )}
         </div>
