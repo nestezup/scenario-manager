@@ -37,7 +37,7 @@ const SceneCard: React.FC<SceneCardProps> = ({ scene, index }) => {
   }
   
   return (
-    <div className="bg-white rounded-lg shadow-sm p-6">
+    <div className="bg-white">
       <h2 className="text-xl font-medium mb-4">씬 {index + 1}</h2>
       
       <div className="space-y-6">
@@ -48,7 +48,7 @@ const SceneCard: React.FC<SceneCardProps> = ({ scene, index }) => {
             value={text} 
             onChange={handleTextChange}
             onBlur={handleTextBlur}
-            className="w-full border border-gray-300 rounded-md p-3 h-24"
+            className="w-full border border-gray-300 rounded-md p-3 h-28"
             placeholder="씬 내용을 입력하세요"
           ></textarea>
         </div>
@@ -56,15 +56,15 @@ const SceneCard: React.FC<SceneCardProps> = ({ scene, index }) => {
         {/* 워크플로우 단계 */}
         <div className="space-y-6">
           {/* 1. 이미지 프롬프트 */}
-          <div className="border border-gray-200 rounded-lg p-4">
-            <div className="flex justify-between items-center mb-2">
+          <div className="border border-gray-200 rounded-md p-4">
+            <div className="flex justify-between items-center">
               <h3 className="text-md font-medium">1. 이미지 프롬프트</h3>
               <button 
                 onClick={generateImagePromptForScene}
                 disabled={!scene.text.trim()}
-                className={`px-3 py-1 rounded-md text-sm ${
+                className={`px-4 py-1 rounded-md text-sm ${
                   scene.text.trim() 
-                    ? 'bg-blue-500 text-white' 
+                    ? 'bg-blue-600 text-white' 
                     : 'bg-gray-200 text-gray-500 cursor-not-allowed'
                 }`}
               >
@@ -77,22 +77,22 @@ const SceneCard: React.FC<SceneCardProps> = ({ scene, index }) => {
                 <span className="mr-2">프롬프트 생성 중...</span>
               </div>
             ) : scene.imagePrompt ? (
-              <div className="bg-gray-50 p-3 rounded text-sm">
+              <div className="bg-gray-50 p-3 rounded text-sm mt-2">
                 {scene.imagePrompt}
               </div>
             ) : null}
           </div>
           
           {/* 2. 이미지 생성 및 선택 */}
-          <div className="border border-gray-200 rounded-lg p-4">
-            <div className="flex justify-between items-center mb-2">
+          <div className="border border-gray-200 rounded-md p-4">
+            <div className="flex justify-between items-center">
               <h3 className="text-md font-medium">2. 이미지 생성 및 선택</h3>
               <button 
                 onClick={generateImagesForScene}
                 disabled={!scene.imagePrompt}
-                className={`px-3 py-1 rounded-md text-sm ${
+                className={`px-4 py-1 rounded-md text-sm ${
                   scene.imagePrompt 
-                    ? 'bg-blue-500 text-white' 
+                    ? 'bg-gray-200 text-gray-700' 
                     : 'bg-gray-200 text-gray-500 cursor-not-allowed'
                 }`}
               >
@@ -105,7 +105,7 @@ const SceneCard: React.FC<SceneCardProps> = ({ scene, index }) => {
                 <span>이미지 생성 중...</span>
               </div>
             ) : scene.images && scene.images.length > 0 ? (
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-3 gap-3 mt-2">
                 {scene.images.map((image, idx) => (
                   <div 
                     key={idx}
@@ -133,15 +133,15 @@ const SceneCard: React.FC<SceneCardProps> = ({ scene, index }) => {
           </div>
           
           {/* 3. 영상 프롬프트 생성 */}
-          <div className="border border-gray-200 rounded-lg p-4">
-            <div className="flex justify-between items-center mb-2">
+          <div className="border border-gray-200 rounded-md p-4">
+            <div className="flex justify-between items-center">
               <h3 className="text-md font-medium">3. 영상 프롬프트 생성</h3>
               <button 
                 onClick={generateVideoPromptForScene}
                 disabled={!scene.selectedImage}
-                className={`px-3 py-1 rounded-md text-sm ${
+                className={`px-4 py-1 rounded-md text-sm ${
                   scene.selectedImage 
-                    ? 'bg-blue-500 text-white' 
+                    ? 'bg-gray-200 text-gray-700' 
                     : 'bg-gray-200 text-gray-500 cursor-not-allowed'
                 }`}
               >
@@ -154,7 +154,7 @@ const SceneCard: React.FC<SceneCardProps> = ({ scene, index }) => {
                 <span>영상 프롬프트 생성 중...</span>
               </div>
             ) : scene.videoPrompt ? (
-              <div className="bg-gray-50 p-3 rounded text-sm">
+              <div className="bg-gray-50 p-3 rounded text-sm mt-2">
                 <div>
                   <strong className="text-gray-700 block mb-1">영상 프롬프트:</strong>
                   <p>{scene.videoPrompt}</p>
@@ -170,15 +170,15 @@ const SceneCard: React.FC<SceneCardProps> = ({ scene, index }) => {
           </div>
           
           {/* 4. 영상 생성 */}
-          <div className="border border-gray-200 rounded-lg p-4">
-            <div className="flex justify-between items-center mb-2">
+          <div className="border border-gray-200 rounded-md p-4">
+            <div className="flex justify-between items-center">
               <h3 className="text-md font-medium">4. 영상 생성</h3>
               <button 
                 onClick={generateVideoForScene}
                 disabled={!scene.videoPrompt || !scene.selectedImage}
-                className={`px-3 py-1 rounded-md text-sm ${
+                className={`px-4 py-1 rounded-md text-sm ${
                   scene.videoPrompt && scene.selectedImage
-                    ? 'bg-blue-500 text-white' 
+                    ? 'bg-blue-600 text-white' 
                     : 'bg-gray-200 text-gray-500 cursor-not-allowed'
                 }`}
               >
@@ -187,18 +187,18 @@ const SceneCard: React.FC<SceneCardProps> = ({ scene, index }) => {
             </div>
             
             {(scene as SceneWithVideo).loadingVideo ? (
-              <div className="flex items-center text-gray-500 text-sm py-2">
+              <div className="flex items-center text-gray-500 text-sm py-2 mt-2">
                 <span>영상 생성 요청 처리 중...</span>
               </div>
             ) : (scene as SceneWithVideo).videoStatus === 'pending' ? (
-              <div className="text-center py-3">
+              <div className="text-center py-3 mt-2">
                 <div className="text-amber-500 text-sm mb-2">영상 생성 진행 중... (30초~1분 소요)</div>
                 <div className="w-full h-2 bg-gray-200 rounded-full">
                   <div className="w-1/2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
                 </div>
               </div>
             ) : (scene as SceneWithVideo).videoStatus === 'completed' && (scene as SceneWithVideo).thumbnailUrl ? (
-              <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-4 mt-2">
                 <div className="relative w-28 aspect-[9/16] bg-gray-100 rounded overflow-hidden">
                   <img 
                     src={(scene as SceneWithVideo).thumbnailUrl} 
@@ -234,51 +234,29 @@ const SceneCard: React.FC<SceneCardProps> = ({ scene, index }) => {
                 </div>
               </div>
             ) : (scene as SceneWithVideo).videoStatus === 'failed' ? (
-              <div className="text-center py-3 text-red-500">
+              <div className="text-center py-3 text-red-500 mt-2">
                 영상 생성 중 오류가 발생했습니다. 다시 시도해 주세요.
               </div>
             ) : null}
           </div>
         </div>
         
-        {/* 씬 컨트롤 */}
-        <div className="flex justify-between pt-2">
+        {/* 씬 네비게이션 */}
+        <div className="flex justify-between mt-4">
           <button 
-            onClick={() => deleteScene(index)}
-            disabled={scenes.length <= 1}
-            className={`px-3 py-1 rounded-md text-sm ${
-              scenes.length > 1 
-                ? 'text-red-500 border border-red-500 hover:bg-red-50' 
-                : 'text-gray-400 border border-gray-300 cursor-not-allowed'
-            }`}
+            onClick={() => moveScene(-1)} 
+            disabled={index === 0}
+            className="text-gray-400"
           >
-            삭제
+            &lt;
           </button>
-          
-          <div className="flex space-x-2">
-            <button 
-              onClick={() => moveScene(-1)} 
-              disabled={index === 0}
-              className={`px-3 py-1 rounded-md text-sm border ${
-                index === 0 
-                  ? 'text-gray-400 border-gray-300 cursor-not-allowed' 
-                  : 'text-gray-700 border-gray-300 hover:bg-gray-50'
-              }`}
-            >
-              이전
-            </button>
-            <button 
-              onClick={() => moveScene(1)} 
-              disabled={index === scenes.length - 1}
-              className={`px-3 py-1 rounded-md text-sm border ${
-                index === scenes.length - 1 
-                  ? 'text-gray-400 border-gray-300 cursor-not-allowed' 
-                  : 'text-gray-700 border-gray-300 hover:bg-gray-50'
-              }`}
-            >
-              다음
-            </button>
-          </div>
+          <button 
+            onClick={() => moveScene(1)} 
+            disabled={index === scenes.length - 1}
+            className="text-gray-400"
+          >
+            &gt;
+          </button>
         </div>
       </div>
     </div>
