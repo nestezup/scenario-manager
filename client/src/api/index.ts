@@ -2,7 +2,9 @@ import {
   type ParseScenesResponse,
   type GenerateImagePromptResponse,
   type GenerateImageResponse,
-  type DescribeImageResponse
+  type DescribeImageResponse,
+  type GenerateVideoResponse,
+  type CheckVideoStatusResponse
 } from '../types'
 
 // Base API URL - can be changed based on environment
@@ -67,4 +69,36 @@ export async function describeImage(data: { image_url: string }): Promise<Descri
   })
   
   return handleResponse<DescribeImageResponse>(response)
+}
+
+// 5. Generate Video API
+export async function generateVideo(data: { 
+  image_url: string, 
+  video_prompt: string, 
+  negative_prompt?: string 
+}): Promise<GenerateVideoResponse> {
+  const response = await fetch(`${BASE_URL}/api/generate-video`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(data)
+  })
+  
+  return handleResponse<GenerateVideoResponse>(response)
+}
+
+// 6. Check Video Status API
+export async function checkVideoStatus(data: { 
+  request_id: string 
+}): Promise<CheckVideoStatusResponse> {
+  const response = await fetch(`${BASE_URL}/api/check-video-status`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(data)
+  })
+  
+  return handleResponse<CheckVideoStatusResponse>(response)
 }

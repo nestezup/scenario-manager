@@ -50,3 +50,25 @@ export interface DescribeImageResponse {
   video_prompt: string
   negative_prompt: string
 }
+
+export interface GenerateVideoResponse {
+  request_id: string
+  status: string
+}
+
+export interface CheckVideoStatusResponse {
+  status: 'pending' | 'completed' | 'failed'
+  video_url?: string
+  thumbnail_url?: string
+  progress?: string
+  error?: string
+}
+
+// 씬 타입 확장
+export interface SceneWithVideo extends Scene {
+  videoRequestId?: string
+  videoStatus?: 'pending' | 'completed' | 'failed'
+  videoUrl?: string
+  thumbnailUrl?: string
+  loadingVideo?: boolean
+}

@@ -424,13 +424,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         } else if (status.status === "FAILED") {
           res.json({
             status: "failed", 
-            error: status.error || "Unknown error"
+            error: "Video generation failed"
           });
         } else {
-          // 아직 처리 중
+          // 아직 처리 중 (IN_QUEUE 또는 IN_PROGRESS)
+          // status.logs는 IN_PROGRESS 상태일 때만 사용 가능
+          let progressMessage = "Processing...";
+          
+          if (status.status === "IN_PROGRESS" && Array.isArray(status.logs) && status.logs.length > 0) {
+            progressMessage = status.logs[status.logs.length - 1].message;
+          }
+          
           res.json({
             status: "pending",
-            progress: status.logs?.length > 0 ? status.logs[status.logs.length - 1].message : "Processing..."
+            progress: progressMessage
           });
         }
       } catch (falError: any) {
