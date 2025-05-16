@@ -208,17 +208,16 @@ const SceneCard: React.FC<SceneCardProps> = ({ scene, index }) => {
           </div>
           
           {/* Step 4: Generate Video (Always show if video prompt is available) */}
-          {scene.videoPrompt && (
-            <div className="border border-gray-200 rounded-md p-4 md:col-span-2 mt-4">
-              <div className="flex justify-between items-center mb-3">
-                <h4 className="font-medium text-gray-800">4. 영상 생성 (세로형 9:16 비율)</h4>
-                <button 
-                  onClick={generateVideoForScene}
-                  className="px-2 py-1 rounded-md text-xs font-medium bg-primary-500 text-white hover:bg-primary-600"
-                >
-                  영상 생성하기
-                </button>
-              </div>
+          <div className="border border-gray-200 rounded-md p-4 md:col-span-2 mt-4">
+            <div className="flex justify-between items-center mb-3">
+              <h4 className="font-medium text-gray-800">4. 영상 생성 (세로형 9:16 비율)</h4>
+              <button 
+                onClick={generateVideoForScene}
+                className="px-2 py-1 rounded-md text-xs font-medium bg-primary-500 text-white hover:bg-primary-600"
+              >
+                영상 생성하기
+              </button>
+            </div>
               
               {/* Video Generation Status */}
               {(scene as SceneWithVideo).loadingVideo ? (
