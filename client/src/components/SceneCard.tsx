@@ -16,8 +16,8 @@ const SceneCard: React.FC<SceneCardProps> = ({ scene, index }) => {
     selectImage, 
     generateVideoPromptForScene,
     generateVideoForScene,
-    moveScene, 
-    deleteScene 
+    moveScene,
+    deleteScene
   } = useSceneStore()
   
   const [text, setText] = useState(scene.text)
@@ -37,7 +37,79 @@ const SceneCard: React.FC<SceneCardProps> = ({ scene, index }) => {
   }
 
   // 씬 타입 캐스팅
-  const sceneWithVideo = scene as SceneWithVideo;
+  const sceneWithVideo = scene as SceneWithVideo
+
+  // 비디오 상태에 따른 렌더링
+  const renderVideoSection = () => {
+    if (sceneWithVideo.loadingVideo) {
+      return <div className="py-2 text-sm text-gray-500">영상 생성 요청 처리 중...</div>
+    }
+
+    if (sceneWithVideo.videoStatus === 'pending') {
+      return (
+        <div className="text-center py-3">
+          <div className="text-amber-500 text-sm mb-2">영상 생성 진행 중... (30초~1분 소요)</div>
+          <div className="w-full h-2 bg-gray-200 rounded-full">
+            <div className="w-1/2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+          </div>
+        </div>
+      )
+    }
+
+    if (sceneWithVideo.videoStatus === 'completed' && sceneWithVideo.thumbnailUrl) {
+      return (
+        <div className="flex items-center space-x-4">
+          <div className="relative w-32 bg-gray-100 rounded overflow-hidden">
+            <div className="aspect-[9/16] w-full overflow-hidden">
+              <img 
+                src={sceneWithVideo.thumbnailUrl} 
+                alt="영상 썸네일" 
+                className="w-full h-full object-contain"
+              />
+            </div>
+            <a 
+              href={sceneWithVideo.videoUrl} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-30 hover:bg-opacity-40"
+            >
+              <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center">
+                <svg className="w-5 h-5 text-blue-500" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z"></path>
+                </svg>
+              </div>
+            </a>
+          </div>
+          <div>
+            <div className="font-medium">세로형 영상 (9:16)</div>
+            <a 
+              href={sceneWithVideo.videoUrl}
+              className="text-blue-500 text-sm hover:underline flex items-center mt-1"
+              target="_blank" 
+              rel="noopener noreferrer"
+            >
+              <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+              다운로드
+            </a>
+          </div>
+        </div>
+      )
+    }
+
+    if (sceneWithVideo.videoStatus === 'failed') {
+      return (
+        <div className="text-center py-3 text-red-500">
+          영상 생성 중 오류가 발생했습니다. 다시 시도해 주세요.
+        </div>
+      )
+    }
+
+    return (
+      <div className="py-2 text-sm text-gray-500">영상 프롬프트를 생성한 후 영상을 생성하세요.</div>
+    )
+  }
   
   return (
     <div className="bg-white p-4 rounded-lg">
@@ -218,60 +290,7 @@ const SceneCard: React.FC<SceneCardProps> = ({ scene, index }) => {
             </button>
           </div>
           
-          {sceneWithVideo.loadingVideo ? (
-            <div className="py-2 text-sm text-gray-500">영상 생성 요청 처리 중...</div>
-          ) : sceneWithVideo.videoStatus === 'pending' ? (
-            <div className="text-center py-3">
-              <div className="text-amber-500 text-sm mb-2">영상 생성 진행 중... (30초~1분 소요)</div>
-              <div className="w-full h-2 bg-gray-200 rounded-full">
-                <div className="w-1/2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
-              </div>
-            </div>
-          ) : sceneWithVideo.videoStatus === 'completed' && sceneWithVideo.thumbnailUrl ? (
-            <div className="flex items-center space-x-4">
-              <div className="relative w-32 bg-gray-100 rounded overflow-hidden">
-                <div className="aspect-[9/16] w-full overflow-hidden">
-                  <img 
-                    src={sceneWithVideo.thumbnailUrl} 
-                    alt="영상 썸네일" 
-                    className="w-full h-full object-contain"
-                  />
-                </div>
-                <a 
-                  href={sceneWithVideo.videoUrl} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-30 hover:bg-opacity-40"
-                >
-                  <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center">
-                    <svg className="w-5 h-5 text-blue-500" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z"></path>
-                    </svg>
-                  </div>
-                </a>
-              </div>
-              <div>
-                <div className="font-medium">세로형 영상 (9:16)</div>
-                <a 
-                  href={sceneWithVideo.videoUrl}
-                  className="text-blue-500 text-sm hover:underline flex items-center mt-1"
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                >
-                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                  </svg>
-                  다운로드
-                </a>
-              </div>
-            </div>
-          ) : sceneWithVideo.videoStatus === 'failed' ? (
-            <div className="text-center py-3 text-red-500">
-              영상 생성 중 오류가 발생했습니다. 다시 시도해 주세요.
-            </div>
-          ) : (
-            <div className="py-2 text-sm text-gray-500">영상 프롬프트를 생성한 후 영상을 생성하세요.</div>
-          )}
+          {renderVideoSection()}
         </div>
       </div>
     </div>
