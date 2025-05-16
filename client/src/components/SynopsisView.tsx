@@ -334,6 +334,132 @@ const SynopsisView: React.FC = () => {
     }
   }
   
+  // Generate video for a scene
+  const generateVideo = async (sceneId: number) => {
+    const scene = scenes.find(s => s.id === sceneId)
+    if (!scene || !scene.videoPrompt || !scene.selectedImage) return
+    
+    // Set loading state
+    setScenes(prevScenes => 
+      prevScenes.map(s => 
+        s.id === sceneId ? { 
+          ...s, 
+          loadingVideo: true 
+        } : s
+      )
+    )
+    
+    try {
+      // 실제 API 호출
+      const response = await fetch('/api/generate-video', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          image_url: scene.selectedImage,
+          video_prompt: scene.videoPrompt,
+          negative_prompt: scene.negativePrompt || ''
+        })
+      })
+      
+      if (!response.ok) {
+        throw new Error('영상 생성 요청 중 오류가 발생했습니다.')
+      }
+      
+      const data = await response.json()
+      
+      // 영상 생성 요청 성공
+      setScenes(prevScenes => 
+        prevScenes.map(s => 
+          s.id === sceneId ? { 
+            ...s, 
+            loadingVideo: false,
+            videoRequestId: data.request_id,
+            videoStatus: 'pending'
+          } : s
+        )
+      )
+      
+      // 비디오 상태 주기적으로 확인 시작
+      setTimeout(() => checkVideoStatus(sceneId), 3000)
+      
+    } catch (error) {
+      console.error('영상 생성 요청 중 오류:', error)
+      
+      // 오류 발생 시 로딩 상태 해제
+      setScenes(prevScenes => 
+        prevScenes.map(s => 
+          s.id === sceneId ? { 
+            ...s, 
+            loadingVideo: false,
+            videoStatus: 'failed'
+          } : s
+        )
+      )
+      
+      alert('영상 생성 요청 중 오류가 발생했습니다.')
+    }
+  }
+  
+  // Check video generation status
+  const checkVideoStatus = async (sceneId: number) => {
+    const scene = scenes.find(s => s.id === sceneId)
+    if (!scene || !scene.videoRequestId || scene.videoStatus !== 'pending') return
+    
+    try {
+      // 실제 API 호출
+      const response = await fetch('/api/check-video-status', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          request_id: scene.videoRequestId
+        })
+      })
+      
+      if (!response.ok) {
+        throw new Error('영상 상태 확인 중 오류가 발생했습니다.')
+      }
+      
+      const data = await response.json()
+      
+      if (data.status === 'completed') {
+        // 영상 생성 완료
+        setScenes(prevScenes => 
+          prevScenes.map(s => 
+            s.id === sceneId ? { 
+              ...s, 
+              videoStatus: 'completed',
+              videoUrl: data.video_url,
+              thumbnailUrl: data.thumbnail_url
+            } : s
+          )
+        )
+      } else if (data.status === 'failed') {
+        // 영상 생성 실패
+        setScenes(prevScenes => 
+          prevScenes.map(s => 
+            s.id === sceneId ? { 
+              ...s, 
+              videoStatus: 'failed'
+            } : s
+          )
+        )
+      } else {
+        // 아직 처리 중, 계속 상태 확인
+        setTimeout(() => checkVideoStatus(sceneId), 3000)
+      }
+      
+    } catch (error) {
+      console.error('영상 상태 확인 중 오류:', error)
+      
+      // 오류가 발생해도 재시도
+      setTimeout(() => checkVideoStatus(sceneId), 5000)
+    }
+  }
+  
   // Download JSON output
   const downloadJSON = () => {
     const completedScenes = scenes.filter(scene => scene.videoPrompt)
@@ -651,6 +777,82 @@ const SynopsisView: React.FC = () => {
                               <p className="text-sm text-gray-700 font-mono">{scenes[activeSceneIndex].negativePrompt}</p>
                             </div>
                           </div>
+                        </div>
+                      )}
+                    </div>
+                  
+                    {/* Step 4: Video Generation */}
+                    <div className="border border-gray-200 rounded-md p-4 md:col-span-2 mt-6">
+                      <div className="flex justify-between items-center mb-3">
+                        <h4 className="font-medium text-gray-800">4. 영상 생성</h4>
+                        <button 
+                          onClick={() => generateVideo(scenes[activeSceneIndex].id)}
+                          disabled={!scenes[activeSceneIndex].videoPrompt || !scenes[activeSceneIndex].selectedImage}
+                          className={`px-4 py-1 rounded-md text-xs font-medium ${
+                            scenes[activeSceneIndex].videoPrompt && scenes[activeSceneIndex].selectedImage
+                              ? 'bg-blue-600 text-white hover:bg-blue-700' 
+                              : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                          }`}
+                        >
+                          영상 생성
+                        </button>
+                      </div>
+                      
+                      {/* Video Generation Status */}
+                      {scenes[activeSceneIndex].loadingVideo ? (
+                        <div className="flex items-center text-gray-500 text-sm py-2">
+                          <span>영상 생성 요청 처리 중...</span>
+                        </div>
+                      ) : scenes[activeSceneIndex].videoStatus === 'pending' ? (
+                        <div className="text-center py-3">
+                          <div className="text-amber-500 text-sm mb-2">영상 생성 진행 중... (30초~1분 소요)</div>
+                          <div className="w-full h-2 bg-gray-200 rounded-full">
+                            <div className="w-1/2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+                          </div>
+                        </div>
+                      ) : scenes[activeSceneIndex].videoStatus === 'completed' && scenes[activeSceneIndex].thumbnailUrl ? (
+                        <div className="flex items-center space-x-4">
+                          <div className="relative w-28 aspect-[9/16] bg-gray-100 rounded overflow-hidden">
+                            <img 
+                              src={scenes[activeSceneIndex].thumbnailUrl} 
+                              alt="영상 썸네일" 
+                              className="w-full h-full object-cover"
+                            />
+                            <a 
+                              href={scenes[activeSceneIndex].videoUrl} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-30 hover:bg-opacity-40"
+                            >
+                              <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center">
+                                <svg className="w-4 h-4 text-blue-500" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                                  <path d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z"></path>
+                                </svg>
+                              </div>
+                            </a>
+                          </div>
+                          <div>
+                            <div className="font-medium">세로형 영상 (9:16)</div>
+                            <a 
+                              href={scenes[activeSceneIndex].videoUrl}
+                              className="text-blue-500 text-sm hover:underline flex items-center mt-1"
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                            >
+                              <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                              </svg>
+                              다운로드
+                            </a>
+                          </div>
+                        </div>
+                      ) : scenes[activeSceneIndex].videoStatus === 'failed' ? (
+                        <div className="text-center py-3 text-red-500">
+                          영상 생성 중 오류가 발생했습니다. 다시 시도해 주세요.
+                        </div>
+                      ) : (
+                        <div className="py-2 text-sm text-gray-500">
+                          영상 프롬프트를 생성한 후 영상을 생성하세요.
                         </div>
                       )}
                     </div>
