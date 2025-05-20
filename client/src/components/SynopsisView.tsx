@@ -788,10 +788,23 @@ const SynopsisView: React.FC = () => {
                         </button>
                       </div>
                       
-                      {/* Prompt Display */}
+                      {/* Prompt Display and Edit */}
                       {scenes[activeSceneIndex].imagePrompt && (
-                        <div className="bg-gray-50 p-3 rounded-md">
-                          <p className="text-sm text-gray-700 font-mono">{scenes[activeSceneIndex].imagePrompt}</p>
+                        <div className="rounded-md">
+                          <label className="block text-sm font-medium text-gray-700 mb-1">프롬프트 수정</label>
+                          <textarea 
+                            value={scenes[activeSceneIndex].imagePrompt} 
+                            onChange={(e) => {
+                              setScenes(prevScenes => 
+                                prevScenes.map(scene => 
+                                  scene.id === scenes[activeSceneIndex].id 
+                                    ? { ...scene, imagePrompt: e.target.value } 
+                                    : scene
+                                )
+                              )
+                            }}
+                            className="w-full border border-gray-300 rounded-md shadow-sm px-3 py-2 h-20 text-sm font-mono focus:border-blue-500 focus:ring-blue-500"
+                          ></textarea>
                         </div>
                       )}
                     </div>
