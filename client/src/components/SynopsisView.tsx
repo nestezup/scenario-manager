@@ -882,15 +882,35 @@ const SynopsisView: React.FC = () => {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">영상 프롬프트</label>
-                            <div className="bg-gray-50 p-3 rounded-md h-32 overflow-y-auto">
-                              <p className="text-sm text-gray-700 font-mono">{scenes[activeSceneIndex].videoPrompt}</p>
-                            </div>
+                            <textarea 
+                              value={scenes[activeSceneIndex].videoPrompt} 
+                              onChange={(e) => {
+                                setScenes(prevScenes => 
+                                  prevScenes.map(scene => 
+                                    scene.id === scenes[activeSceneIndex].id 
+                                      ? { ...scene, videoPrompt: e.target.value } 
+                                      : scene
+                                  )
+                                )
+                              }}
+                              className="w-full border border-gray-300 rounded-md shadow-sm px-3 py-2 h-32 text-sm font-mono focus:border-blue-500 focus:ring-blue-500"
+                            ></textarea>
                           </div>
                           <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Negative Prompt</label>
-                            <div className="bg-gray-50 p-3 rounded-md h-32 overflow-y-auto">
-                              <p className="text-sm text-gray-700 font-mono">{scenes[activeSceneIndex].negativePrompt}</p>
-                            </div>
+                            <textarea 
+                              value={scenes[activeSceneIndex].negativePrompt} 
+                              onChange={(e) => {
+                                setScenes(prevScenes => 
+                                  prevScenes.map(scene => 
+                                    scene.id === scenes[activeSceneIndex].id 
+                                      ? { ...scene, negativePrompt: e.target.value } 
+                                      : scene
+                                  )
+                                )
+                              }}
+                              className="w-full border border-gray-300 rounded-md shadow-sm px-3 py-2 h-32 text-sm font-mono focus:border-blue-500 focus:ring-blue-500"
+                            ></textarea>
                           </div>
                         </div>
                       )}
