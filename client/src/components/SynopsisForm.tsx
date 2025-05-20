@@ -6,7 +6,7 @@ interface SynopsisFormProps {
 
 const SynopsisForm: React.FC<SynopsisFormProps> = ({ onSubmit }) => {
   const [synopsis, setSynopsis] = useState('')
-  const [sceneCount, setSceneCount] = useState(10)
+  const [sceneCount, setSceneCount] = useState(3)
   
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -35,7 +35,7 @@ const SynopsisForm: React.FC<SynopsisFormProps> = ({ onSubmit }) => {
           <input 
             type="range" 
             id="scene-count" 
-            min="5" 
+            min="3" 
             max="20" 
             step="1"
             value={sceneCount}
@@ -43,9 +43,9 @@ const SynopsisForm: React.FC<SynopsisFormProps> = ({ onSubmit }) => {
             className="mt-2 w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
           />
           <div className="flex justify-between text-xs text-gray-500">
-            <span>5</span>
-            <span>10</span>
-            <span>15</span>
+            <span>3</span>
+            <span>8</span>
+            <span>14</span>
             <span>20</span>
           </div>
         </div>
