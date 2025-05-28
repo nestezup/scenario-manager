@@ -46,7 +46,7 @@ export const insertVideoPromptSchema = createInsertSchema(videoPrompts).pick({
 // API request and response types
 export const parseSceneRequestSchema = z.object({
   synopsis: z.string().min(1),
-  scene_count: z.number().min(5).max(20),
+  scene_count: z.number().min(3).max(20),
 });
 
 export const imagePromptRequestSchema = z.object({

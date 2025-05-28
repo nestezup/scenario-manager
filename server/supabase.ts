@@ -37,8 +37,7 @@ console.log("=========================================");
 
 // Check if we're in development mode without Supabase credentials
 const isDevelopmentWithoutSupabase = 
-  process.env.NODE_ENV === 'development' && 
-  (!supabaseUrl || !supabaseKey);
+  false; // 항상 실제 Supabase 클라이언트를 사용하도록 변경
 
 console.log("Using mock Supabase client:", isDevelopmentWithoutSupabase);
 

@@ -48,10 +48,15 @@ const magicLinkSchema = z.object({
 
 // Credit costs for different operations
 const CREDIT_COSTS = {
-  IMAGE_GENERATION: 1,
-  PROMPT_GENERATION: 1,
-  VIDEO_GENERATION: 3
+  IMAGE_GENERATION: 5,
+  PROMPT_GENERATION: 5,
+  VIDEO_GENERATION: 10,
+  SCENE_PARSING: 5
 };
+
+// Rate limiting for magic link requests
+const magicLinkRateLimit = new Map<string, number>();
+const RATE_LIMIT_DURATION = 60000; // 60 seconds
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Authentication Routes
@@ -64,34 +69,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { email } = magicLinkSchema.parse(req.body);
       console.log("Parsed email:", email);
       
+      // Rate limiting check
+      const now = Date.now();
+      const lastRequest = magicLinkRateLimit.get(email);
+      
+      if (lastRequest && (now - lastRequest) < RATE_LIMIT_DURATION) {
+        const remainingTime = Math.ceil((RATE_LIMIT_DURATION - (now - lastRequest)) / 1000);
+        console.log(`Rate limit hit for ${email}, ${remainingTime}s remaining`);
+        return res.status(429).json({ 
+          success: false, 
+          message: `A magic link was recently sent to this email. Please wait ${remainingTime} seconds before requesting another.` 
+        });
+      }
+      
+      // Record this request
+      magicLinkRateLimit.set(email, now);
+      
+      // Clean up old entries (older than rate limit duration)
+      for (const [storedEmail, timestamp] of Array.from(magicLinkRateLimit.entries())) {
+        if (now - timestamp > RATE_LIMIT_DURATION) {
+          magicLinkRateLimit.delete(storedEmail);
+        }
+      }
+      
       const result = await authService.sendMagicLink(email);
       console.log("Magic link result:", result.success ? "Success" : "Failed");
       
       if (result.success) {
-        // 개발 모드에서는 직접 세션을 설정하여 즉시 로그인 처리
-        if (process.env.NODE_ENV === 'development') {
-          req.session.userId = 'mock-user-id';
-          
-          // 세션이 저장될 때까지 기다림
-          await new Promise<void>((resolve, reject) => {
-            req.session.save((err) => {
-              if (err) {
-                console.error("Failed to save session:", err);
-                reject(err);
-              } else {
-                resolve();
-              }
-            });
-          });
-          
-          console.log('개발 모드에서 세션 설정 완료. userId:', req.session.userId);
-        }
-        
         res.json({ 
           success: true, 
           message: "Magic link sent to your email. Please check your inbox." 
         });
       } else {
+        // Remove from rate limit if sending failed
+        magicLinkRateLimit.delete(email);
         res.status(400).json({ 
           success: false, 
           message: "Failed to send magic link. Please try again." 
@@ -108,32 +119,89 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Get current user
   app.get("/api/me", async (req: Request & { user?: any }, res) => {
+    console.log("=== /api/me ENDPOINT REACHED ===");
     console.log("GET /api/me - 세션 ID:", req.session.id);
     console.log("GET /api/me - 세션 사용자 ID:", req.session.userId);
+    console.log("GET /api/me - Request headers:", req.headers);
+    
+    // Authorization 헤더에서 토큰 확인
+    const authHeader = req.headers.authorization;
+    let userId = req.user?.id || req.session.userId;
+    let bearerToken = null;
+    
+    // Bearer 토큰이 있으면 사용
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      bearerToken = authHeader.substring(7);
+      console.log("Authorization 헤더에서 토큰 추출:", bearerToken ? bearerToken.substring(0, 20) + "..." : "없음");
+      
+      // 토큰에서 사용자 ID 추출 (JWT 디코딩)
+      try {
+        // JWT 디코딩 로직
+        const tokenParts = bearerToken.split('.');
+        if (tokenParts.length === 3) {
+          const base64Payload = tokenParts[1].replace(/-/g, '+').replace(/_/g, '/');
+          const paddedBase64Payload = base64Payload.padEnd(base64Payload.length + (4 - (base64Payload.length % 4)) % 4, '=');
+          
+          try {
+            const payloadBuffer = Buffer.from(paddedBase64Payload, 'base64');
+            const payloadStr = payloadBuffer.toString();
+            const payload = JSON.parse(payloadStr);
+            
+            // Supabase는 sub 또는 user_id에 사용자 ID를 저장
+            const tokenUserId = payload.sub || payload.user_id || payload.id;
+            if (tokenUserId) {
+              console.log("토큰에서 추출한 사용자 ID:", tokenUserId);
+              userId = tokenUserId;
+            }
+          } catch (err) {
+            console.error("토큰 페이로드 파싱 오류:", err);
+          }
+        }
+      } catch (err) {
+        console.error("토큰 디코딩 오류:", err);
+      }
+    }
 
-    if (!req.user && !req.session.userId) {
+    if (!userId) {
       return res.status(401).json({ message: "Not authenticated" });
     }
     
-    // 개발 모드에서 모의 사용자 데이터 제공
-    if (process.env.NODE_ENV === 'development' && (!req.user || req.session.userId === 'mock-user-id')) {
-      console.log("개발 모드에서 모의 사용자 데이터 반환");
+    let email = req.user?.email || '';
+    let credits = 0;
+    
+    // 사용자 정보를 DB에서 조회
+    try {
+      const { data: userData, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', userId)
+        .single();
+        
+      if (error) {
+        console.error('Error fetching user from DB in /api/me:', error);
+        return res.status(401).json({ message: "User not found in database" });
+      }
       
-      // 모의 사용자 데이터 반환
-      return res.json({
-        id: 'mock-user-id',
-        email: 'mock@example.com',
-        credits: 100
-      });
+      if (userData) {
+        // req.user 설정 (미들웨어가 처리하지 못한 경우를 위해)
+        req.user = userData;
+        userId = userData.id;
+        email = userData.email;
+      } else {
+        return res.status(401).json({ message: "User not found" });
+      }
+    } catch (dbError) {
+      console.error('Database error in /api/me:', dbError);
+      return res.status(500).json({ message: "Server error fetching user data" });
     }
     
     // Get user's credit balance
-    const credits = await creditsService.getUserCredits(req.user.id);
+    credits = await creditsService.getUserCredits(userId) || 0;
     
     res.json({
-      id: req.user.id,
-      email: req.user.email,
-      credits: credits || 0
+      id: userId,
+      email: email,
+      credits: credits
     });
   });
   
@@ -152,13 +220,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Parse scenes from synopsis
   app.post("/api/parse-scenes", async (req: Request & { user?: any }, res) => {
     try {
-      const data = parseSceneRequestSchema.parse(req.body);
+      console.log("=== PARSE SCENES REQUEST DEBUG ===");
+      console.log("Raw request body:", req.body);
+      console.log("Request body type:", typeof req.body);
+      console.log("Scene count value:", req.body.scene_count);
+      console.log("Scene count type:", typeof req.body.scene_count);
+      console.log("================================");
+      
+      const { synopsis, scene_count } = parseSceneRequestSchema.parse(req.body);
       
       // Check if user is authenticated and has enough credits
       if (req.user) {
         const hasCredits = await creditsService.hasEnoughCredits(
           req.user.id, 
-          CREDIT_COSTS.PROMPT_GENERATION
+          CREDIT_COSTS.SCENE_PARSING
         );
         
         if (!hasCredits) {
@@ -179,8 +254,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           },
           body: JSON.stringify({
             inputs: {
-              synopsis: data.synopsis,
-              scene_count: data.scene_count,
+              synopsis: synopsis,
+              scene_count: scene_count,
             },
             // 스트리밍 대신 blocking 모드 사용
             response_mode: "blocking",
@@ -213,15 +288,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Dify API 응답의 text 필드에서 JSON 문자열 파싱
       const scenes = JSON.parse(difyData.data.outputs.text);
       
+      console.log('Parsed scenes from Dify:', scenes);
+      console.log('Number of scenes:', scenes.length);
+      
       // Deduct credits after successful operation
       if (req.user) {
-        await creditsService.deductCredits(
+        console.log('Attempting to deduct credits for scene parsing...');
+        const newBalance = await creditsService.deductCredits(
           req.user.id,
-          CREDIT_COSTS.PROMPT_GENERATION,
+          CREDIT_COSTS.SCENE_PARSING,
           "Scene parsing from synopsis"
         );
+        console.log('Credit deduction result:', newBalance);
       }
 
+      console.log('Sending scenes response to client:', scenes.length, 'scenes');
       res.json(scenes);
     } catch (error: any) {
       console.error("Scene parsing error:", error);
@@ -329,23 +410,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const data = generateImageRequestSchema.parse(req.body);
       
+      const numImages = 3; // 생성할 이미지 개수
+      const creditsPerImage = CREDIT_COSTS.IMAGE_GENERATION; // 이미지당 5크레딧
+      const totalRequiredCredits = creditsPerImage * numImages; // 총 15크레딧 필요
+      
       // Check if user is authenticated and has enough credits
       if (req.user) {
         const currentCredits = await creditsService.getUserCredits(req.user.id);
-        const requiredCredits = CREDIT_COSTS.IMAGE_GENERATION * 3; // 3개의 이미지를 생성하므로 15크레딧 필요
         
-        console.log(`크레딧 확인: 사용자=${req.user.id}, 현재 크레딧=${currentCredits}, 필요 크레딧=${requiredCredits}`);
+        console.log(`크레딧 확인: 사용자=${req.user.id}, 현재 크레딧=${currentCredits}, 필요 크레딧=${totalRequiredCredits} (${numImages}개 이미지 x ${creditsPerImage}크레딧)`);
         
         const hasCredits = await creditsService.hasEnoughCredits(
           req.user.id, 
-          requiredCredits
+          totalRequiredCredits
         );
         
         if (!hasCredits) {
           return res.status(402).json({ 
             success: false,
-            message: `크레딧이 부족합니다. 이미지 생성을 위해서는 ${requiredCredits}개의 크레딧이 필요하지만, 현재 ${currentCredits}개의 크레딧만 보유하고 있습니다.`,
-            requiredCredits: requiredCredits,
+            message: `크레딧이 부족합니다. ${numImages}개 이미지 생성을 위해서는 ${totalRequiredCredits}개의 크레딧이 필요하지만, 현재 ${currentCredits}개의 크레딧만 보유하고 있습니다.`,
+            requiredCredits: totalRequiredCredits,
             currentCredits: currentCredits
           });
         }
@@ -459,11 +543,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         // Deduct credits after successful operation
         if (req.user) {
-          await creditsService.deductCredits(
+          console.log('Attempting to deduct credits for image generation...');
+          const newBalance = await creditsService.deductCredits(
             req.user.id,
-            CREDIT_COSTS.IMAGE_GENERATION * 3, // 3개의 이미지를 생성하므로 이미지당 5크레딧 * 3 = 15크레딧 차감
+            totalRequiredCredits, // 이미지 생성에 15크레딧 필요
             "Image generation (3 images)"
           );
+          console.log('Image generation credit deduction result:', newBalance);
         }
         
         res.json({ images: imageUrls });
@@ -546,24 +632,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
           throw new Error("영상 프롬프트 생성 결과가 올바른 형식이 아닙니다");
         }
 
+        // Deduct credits after successful operation (성공한 경우에만)
+        if (req.user) {
+          console.log('Attempting to deduct credits for video prompt generation...');
+          const newBalance = await creditsService.deductCredits(
+            req.user.id,
+            CREDIT_COSTS.PROMPT_GENERATION,
+            "Video prompt generation"
+          );
+          console.log('Video prompt generation credit deduction result:', newBalance);
+        }
+
         // Return the video and negative prompts
         res.json({
           video_prompt: result.video_prompt,
           negative_prompt: result.negative_prompt,
         });
         
-        // Deduct credits after successful operation
-        if (req.user) {
-          await creditsService.deductCredits(
-            req.user.id,
-            CREDIT_COSTS.PROMPT_GENERATION,
-            "Video prompt generation"
-          );
-        }
       } catch (apiError: any) {
         console.error("영상 프롬프트 생성 API 오류:", apiError);
 
-        // API 오류 시 임시 응답 제공
+        // API 오류 시 임시 응답 제공 (크레딧 차감 없음)
         const videoPrompts = [
           "A cinematic sequence showing the scene with dramatic lighting and atmosphere. Camera slowly moves from left to right, revealing the scene details.",
           "High-definition video capture of the scene. Camera starts with a wide establishing shot and gradually zooms in on the main subject.",
@@ -580,6 +669,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         const randomIndex = Math.floor(Math.random() * videoPrompts.length);
 
+        console.log('API 오류로 인해 fallback 응답 제공 - 크레딧 차감 없음');
         res.json({
           video_prompt: videoPrompts[randomIndex],
           negative_prompt: negativePrompts[randomIndex],
@@ -859,6 +949,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/auth/session-from-token", async (req, res) => {
     try {
       console.log("POST /api/auth/session-from-token - Request body:", req.body);
+      console.log("Initial session ID:", req.session?.id || 'No session ID');
       
       const { access_token, refresh_token, type } = req.body;
       
@@ -892,24 +983,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const payloadStr = payloadBuffer.toString();
           console.log('Decoded payload string (first 100 chars):', payloadStr.substring(0, 100));
           
-          const payload = JSON.parse(payloadStr);
-          console.log('Token payload parsed successfully:', payload);
-          
-          // Supabase는 sub 또는 user_id에 사용자 ID를 저장
-          userId = payload.sub || payload.user_id || payload.id || payload.aud;
-          email = payload.email;
-          
-          console.log('Extracted user ID from token:', userId);
-          console.log('Extracted email from token:', email);
-        } catch (parseError) {
-          console.error('JSON parse error:', parseError);
-          console.error('Failed payload string:', Buffer.from(paddedBase64Payload, 'base64').toString().substring(0, 200));
-          throw new Error('Failed to parse token payload');
-        }
-        
-        if (!userId) {
-          console.error('User ID not found in token payload');
-          throw new Error('User ID not found in token');
+          try {
+            const payload = JSON.parse(payloadStr);
+            console.log('Token payload parsed successfully:', payload);
+            
+            // Supabase는 sub 또는 user_id에 사용자 ID를 저장
+            userId = payload.sub || payload.user_id || payload.id;
+            email = payload.email;
+            
+            console.log('Extracted user ID from token:', userId);
+            console.log('Extracted email from token:', email);
+            
+            if (!userId) {
+              console.error('User ID not found in token payload');
+              throw new Error('User ID not found in token');
+            }
+          } catch (jsonError) {
+            console.error('JSON parse error:', jsonError);
+            throw new Error('Failed to parse token payload JSON: ' + payloadStr.substring(0, 50));
+          }
+        } catch (bufferError) {
+          console.error('Buffer decoding error:', bufferError);
+          console.error('Failed base64 payload:', paddedBase64Payload.substring(0, 50));
+          throw new Error('Failed to decode token payload from base64');
         }
       } catch (tokenError) {
         console.error('Token decoding error:', tokenError);
@@ -919,55 +1015,67 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      // 사용자 정보를 데이터베이스에서 가져오거나 생성 (email이 있는 경우)
+      // 세션 생성 및 저장
+      req.session.userId = userId;
+      console.log("New session created with ID:", req.session?.id || 'Unknown');
+      console.log("Session user ID set to:", req.session.userId);
+      
+      // Supabase 테이블에 사용자 추가 (없는 경우)
       if (email) {
         try {
-          // 사용자 정보 조회
+          console.log('Checking if user exists in database...');
           const { data: existingUser, error: queryError } = await supabase
             .from('users')
             .select('*')
             .eq('id', userId)
             .single();
           
-          if (queryError) {
-            console.error('Error querying user:', queryError);
+          if (queryError && queryError.code !== 'PGRST116') {
+            console.error('Database error during user lookup:', queryError);
+            // 오류가 발생했지만 인증은 계속 진행
           }
           
-          if (!existingUser) {
-            console.log('User not found in database, creating new user');
+          if (!existingUser && queryError?.code === 'PGRST116') {
+            console.log('User not found in database, creating new user with ID:', userId);
             
-            // 새 사용자 생성
-            const { data: newUser, error: insertError } = await supabase
-              .from('users')
-              .insert([
-                { 
-                  id: userId, 
-                  email: email,
-                  credits: 10, // 초기 크레딧
-                  created_at: new Date().toISOString(),
-                  updated_at: new Date().toISOString()
-                }
-              ])
-              .select();
-              
-            if (insertError) {
-              console.error('Error creating new user:', insertError);
-            } else {
-              console.log('Created new user with ID:', userId);
+            try {
+              const { data: newUser, error: insertError } = await supabase
+                .from('users')
+                .insert([
+                  { 
+                    id: userId, 
+                    email: email,
+                    credits: 100, // 초기 크레딧
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString()
+                  }
+                ])
+                .select();
+                
+              if (insertError) {
+                console.error('Error creating new user in database:', insertError);
+                console.error('Insert error details:', {
+                  code: insertError.code,
+                  message: insertError.message,
+                  details: insertError.details,
+                  hint: insertError.hint
+                });
+              } else {
+                console.log('Successfully created new user in database:', newUser);
+              }
+            } catch (insertErr) {
+              console.error('Exception during user creation:', insertErr);
             }
-          } else {
-            console.log('Found existing user:', existingUser.email);
+          } else if (existingUser) {
+            console.log('Found existing user in database:', existingUser.email);
           }
         } catch (dbError) {
-          console.error('Database error:', dbError);
-          // DB 오류는 무시하고 계속 진행
+          console.error('Database operation error:', dbError);
+          // DB 오류는 로그만 남기고 진행 (인증은 계속 진행)
         }
       } else {
-        console.warn('No email found in token, skipping user creation');
+        console.warn('No email available from token, skipping user creation');
       }
-      
-      // 세션에 사용자 ID 저장
-      req.session.userId = userId;
       
       // 세션이 저장될 때까지 기다림
       await new Promise<void>((resolve, reject) => {
@@ -976,16 +1084,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
             console.error("Failed to save session:", err);
             reject(err);
           } else {
+            console.log("Session successfully saved");
             resolve();
           }
         });
       });
       
-      console.log('Session created for user ID:', userId, 'Session ID:', req.session.id);
+      console.log('Session created for user ID:', userId, 'Session ID:', req.session?.id || 'Unknown');
+      
+      // 쿠키 헤더 설정 확인
+      const cookies = res.getHeader('Set-Cookie');
+      console.log("Response cookie headers:", cookies ? JSON.stringify(cookies) : 'No cookies set');
+      
+      // 세션 쿠키 확인 및 강제 설정
+      if (!cookies || (Array.isArray(cookies) && cookies.length === 0)) {
+        console.log('Attempting to explicitly set session cookie');
+        // 세션 ID 기반 쿠키 설정
+        const cookieOptions = {
+          httpOnly: true,
+          maxAge: 24 * 60 * 60 * 1000, // 1일
+          path: '/',
+          sameSite: 'lax' as const,
+          secure: false
+        };
+        
+        res.cookie('scenario_sid', req.session.id, cookieOptions);
+        
+        // 새 쿠키 헤더 확인
+        const newCookies = res.getHeader('Set-Cookie');
+        console.log("New cookie headers after explicit setting:", JSON.stringify(newCookies));
+      }
       
       res.json({ 
         success: true, 
-        message: "Authentication successful" 
+        message: "Authentication successful",
+        userId: userId
       });
     } catch (error: any) {
       console.error("Session from token error:", error);

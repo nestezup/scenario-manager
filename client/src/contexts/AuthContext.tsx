@@ -13,6 +13,7 @@ interface AuthContextType {
   error: string | null;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
+  updateCredits: (newCredits: number) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -26,37 +27,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const fetchUser = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/me');
+      setError(null);
+      
+      console.log('AuthContext - Making /api/me request');
+      
+      const response = await fetch('/api/me', {
+        credentials: 'include',
+        headers: {
+          'Accept': 'application/json'
+        }
+      });
+      
+      console.log('AuthContext - /api/me response status:', response.status);
       
       if (!response.ok) {
         if (response.status === 401) {
-          // Not authenticated, clear user
+          console.log('AuthContext - 401 response, user not authenticated');
           setUser(null);
-          
-          // Get the response text to check for specific error messages
-          const errorData = await response.json().catch(() => ({}));
-          console.error('Authentication error:', errorData);
-          
-          // Check if it's an "Invalid session" error specifically
-          if (errorData.message && errorData.message.includes('Invalid session')) {
-            console.log('Invalid session detected, redirecting to login page');
-            
-            // Redirect to login page after a short delay
-            setTimeout(() => {
-              setLocation('/auth/login');
-            }, 100);
-          }
-          
           return;
         }
         throw new Error('Failed to fetch user data');
       }
       
       const userData = await response.json();
+      console.log('AuthContext - Successfully fetched user data:', userData);
       setUser(userData);
     } catch (err: any) {
       console.error('Error fetching user:', err);
       setError(err.message || 'An error occurred');
+      setUser(null);
     } finally {
       setLoading(false);
     }
@@ -68,20 +67,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = async () => {
     try {
-      const response = await fetch('/api/logout', {
+      await fetch('/api/logout', {
         method: 'POST',
+        credentials: 'include'
       });
       
-      if (!response.ok) {
-        throw new Error('Failed to logout');
-      }
-      
       setUser(null);
-      // Redirect to login page after logout
       setLocation('/auth/login');
     } catch (err: any) {
       console.error('Error logging out:', err);
-      setError(err.message || 'An error occurred during logout');
+      setUser(null);
+      setLocation('/auth/login');
     }
   };
 
@@ -89,8 +85,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await fetchUser();
   };
 
+  const updateCredits = (newCredits: number) => {
+    if (user) {
+      setUser({ ...user, credits: newCredits });
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading, error, logout, refreshUser }}>
+    <AuthContext.Provider value={{ 
+      user, 
+      loading, 
+      error, 
+      logout, 
+      refreshUser,
+      updateCredits
+    }}>
       {children}
     </AuthContext.Provider>
   );

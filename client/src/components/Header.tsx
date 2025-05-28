@@ -1,10 +1,36 @@
 import { useAuth } from '../contexts/AuthContext';
 import CreditDisplay from './CreditDisplay';
 import { useLocation } from 'wouter';
+import { useEffect } from 'react';
 
 export default function Header() {
-  const { user, logout } = useAuth();
+  const { user, logout, updateCredits } = useAuth();
   const [, setLocation] = useLocation();
+  
+  // Periodically update credits without triggering full refresh
+  useEffect(() => {
+    if (user) {
+      const interval = setInterval(async () => {
+        try {
+          const response = await fetch('/api/me', {
+            credentials: 'include',
+            headers: { 'Accept': 'application/json' }
+          });
+          
+          if (response.ok) {
+            const userData = await response.json();
+            if (userData.credits !== user.credits) {
+              updateCredits(userData.credits);
+            }
+          }
+        } catch (err) {
+          console.error('Failed to update credits in header:', err);
+        }
+      }, 30000); // 30초마다 확인 (즉시 업데이트가 주로 사용됨)
+      
+      return () => clearInterval(interval);
+    }
+  }, [user, updateCredits]);
   
   const handleLogout = async () => {
     await logout();

@@ -12,7 +12,7 @@ import { useAuth } from '../contexts/AuthContext'
 
 // Credit costs for different operations
 const CREDIT_COSTS = {
-  IMAGE_GENERATION: 15,
+  IMAGE_GENERATION: 15, // 3개 이미지 생성 (5 x 3)
   PROMPT_GENERATION: 5,
   VIDEO_GENERATION: 10,
   SCENE_PARSING: 5
@@ -57,12 +57,25 @@ const negativePrompts = [
 const SynopsisView: React.FC = () => {
   const [step, setStep] = useState<'input' | 'processing' | 'scenes'>('input')
   const [synopsis, setSynopsis] = useState('')
-  const [sceneCount, setSceneCount] = useState(10)
+  const [sceneCount, setSceneCount] = useState(5)
   const [scenes, setScenes] = useState<Scene[]>([])
   const [activeSceneIndex, setActiveSceneIndex] = useState<number | null>(null)
   const [showInsufficientCreditsModal, setShowInsufficientCreditsModal] = useState(false)
   const [requiredCredits, setRequiredCredits] = useState(0)
-  const { user } = useAuth()
+  const [currentOperation, setCurrentOperation] = useState('')
+  const { user, updateCredits } = useAuth()
+  
+  // useEffect to handle scenes state changes
+  useEffect(() => {
+    if (scenes.length > 0) {
+      if (step !== 'scenes') {
+        setStep('scenes');
+      }
+      if (activeSceneIndex === null) {
+        setActiveSceneIndex(0);
+      }
+    }
+  }, [scenes]);
   
   // Progress percentage calculation
   const getProgressPercentage = () => {
@@ -102,40 +115,37 @@ const SynopsisView: React.FC = () => {
         
         if (response.status === 402) {
           // Insufficient credits
-          setRequiredCredits(CREDIT_COSTS.PROMPT_GENERATION);
+          setRequiredCredits(CREDIT_COSTS.SCENE_PARSING);
+          setCurrentOperation('scene parsing');
           setShowInsufficientCreditsModal(true);
           setStep('input');
           return;
         }
         
         if (!response.ok) {
-          throw new Error('API 호출 중 오류가 발생했습니다.')
+          const errorText = await response.text();
+          throw new Error(`API 호출 중 오류가 발생했습니다. (${response.status})`);
         }
         
-        const parsedScenes = await response.json()
+        const data = await response.json()
         
-        // 응답 데이터를 Scene 타입에 맞게 변환
-        const formattedScenes = parsedScenes.map((scene: any) => ({
-          id: scene.id,
-          text: scene.text,
-          order: scene.order,
-          imagePrompt: '',
-          images: [],
-          selectedImageIndex: null,
-          selectedImage: null,
-          videoPrompt: '',
-          negativePrompt: '',
-          loadingImagePrompt: false,
-          loadingImages: false,
-          loadingVideoPrompt: false
-        }))
+        if (!Array.isArray(data) || data.length === 0) {
+          throw new Error('유효하지 않은 씬 데이터를 받았습니다.');
+        }
         
-        setScenes(formattedScenes)
-        setActiveSceneIndex(0)
-        setStep('scenes')
+        setScenes(data)
+        
+        // Use setTimeout to ensure state updates are processed
+        setTimeout(() => {
+          setStep('scenes');
+          setActiveSceneIndex(0);
+        }, 50);
+        
+        // 즉시 크레딧 업데이트 (서버에서 차감된 만큼 반영)
+        if (user) {
+          updateCredits(user.credits - CREDIT_COSTS.SCENE_PARSING);
+        }
       } catch (error) {
-        console.error('씬 분석 중 오류 발생:', error)
-        // 오류 시 모의 데이터로 폴백 (실제 환경에서는 오류 메시지 표시)
         alert('씬 분석 중 오류가 발생했습니다. 관리자에게 문의하세요.')
         
         setStep('input')
@@ -179,6 +189,7 @@ const SynopsisView: React.FC = () => {
       if (response.status === 402) {
         // Insufficient credits
         setRequiredCredits(CREDIT_COSTS.PROMPT_GENERATION);
+        setCurrentOperation('image prompt generation');
         setShowInsufficientCreditsModal(true);
         
         // Reset loading state
@@ -205,9 +216,12 @@ const SynopsisView: React.FC = () => {
           } : scene
         )
       )
-    } catch (error) {
-      console.error('이미지 프롬프트 생성 중 오류:', error)
       
+      // 즉시 크레딧 업데이트 (서버에서 차감된 만큼 반영)
+      if (user) {
+        updateCredits(user.credits - CREDIT_COSTS.PROMPT_GENERATION);
+      }
+    } catch (error) {
       // 오류 발생 시 로딩 상태 해제
       setScenes(prevScenes => 
         prevScenes.map(scene => 
@@ -246,6 +260,7 @@ const SynopsisView: React.FC = () => {
       if (response.status === 402) {
         // Insufficient credits
         setRequiredCredits(CREDIT_COSTS.IMAGE_GENERATION);
+        setCurrentOperation('image generation');
         setShowInsufficientCreditsModal(true);
         
         // Reset loading state
@@ -263,18 +278,20 @@ const SynopsisView: React.FC = () => {
       
       const data = await response.json()
       
+      // Update the scene with the generated images
       setScenes(prevScenes => 
-        prevScenes.map(s => 
-          s.id === sceneId ? { 
-            ...s, 
-            images: data.images,
-            loadingImages: false 
-          } : s
+        prevScenes.map(scene => 
+          scene.id === sceneId 
+            ? { ...scene, images: data.images, loadingImages: false }
+            : scene
         )
       )
-    } catch (error) {
-      console.error('이미지 생성 중 오류:', error)
       
+      // 즉시 크레딧 업데이트 (서버에서 차감된 만큼 반영)
+      if (user) {
+        updateCredits(user.credits - CREDIT_COSTS.IMAGE_GENERATION);
+      }
+    } catch (error) {
       // 오류 발생 시 로딩 상태 해제
       setScenes(prevScenes => 
         prevScenes.map(s => 
@@ -332,7 +349,10 @@ const SynopsisView: React.FC = () => {
         // Insufficient credits
         const errorData = await response.json();
         setRequiredCredits(CREDIT_COSTS.PROMPT_GENERATION);
+        setCurrentOperation('video prompt generation');
         setShowInsufficientCreditsModal(true);
+        
+        // Reset loading state
         setScenes(prevScenes => 
           prevScenes.map(s => 
             s.id === sceneId ? { ...s, loadingVideoPrompt: false } : s
@@ -357,9 +377,12 @@ const SynopsisView: React.FC = () => {
           } : s
         )
       )
-    } catch (error) {
-      console.error('영상 프롬프트 생성 중 오류:', error)
       
+      // 즉시 크레딧 업데이트 (서버에서 차감된 만큼 반영)
+      if (user) {
+        updateCredits(user.credits - CREDIT_COSTS.PROMPT_GENERATION);
+      }
+    } catch (error) {
       // 오류 발생 시 로딩 상태 해제
       setScenes(prevScenes => 
         prevScenes.map(s => 
@@ -376,8 +399,6 @@ const SynopsisView: React.FC = () => {
     const scene = scenes.find(s => s.id === sceneId)
     if (!scene || !scene.videoPrompt || !scene.selectedImage) return
     
-    console.log('영상 생성 요청 시작:', sceneId, scene.videoPrompt?.slice(0, 20))
-    
     // Set loading state - 명시적으로 모든 필드 초기화
     setScenes(prevScenes => 
       prevScenes.map(s => 
@@ -393,8 +414,6 @@ const SynopsisView: React.FC = () => {
     )
     
     try {
-      console.log('영상 생성 API 호출:', scene.selectedImage?.slice(0, 30))
-      
       // 실제 API 호출
       const response = await fetch('/api/generate-video', {
         method: 'POST',
@@ -413,7 +432,6 @@ const SynopsisView: React.FC = () => {
       }
       
       const data = await response.json()
-      console.log('영상 생성 응답 성공:', data)
       
       // 영상 생성 요청 성공 - 명시적으로 모든 필드 업데이트
       const updatedScenes = (prevScenes: Scene[]) => {
@@ -429,25 +447,23 @@ const SynopsisView: React.FC = () => {
           } as SceneWithVideo
         }
         
-        console.log('영상 생성 상태 업데이트:', newScenes[sceneIndex])
         return newScenes
       }
       
       setScenes(updatedScenes)
       
-      // 디버깅을 위해 바로 현재 상태 확인
-      console.log('영상 상태 확인 설정됨. 3초 후 실행')
-      
       // 비디오 상태 주기적으로 확인 시작 - 직접 request_id 전달
       setTimeout(() => {
-        console.log('영상 상태 확인 타이머 실행')
         // 상태 변경 후 직접 상태 확인 (scenes 상태가 불확실할 수 있음)
         checkVideoStatusDirect(sceneId, data.request_id)
       }, 3000)
       
-    } catch (error) {
-      console.error('영상 생성 요청 중 오류:', error)
+      // 즉시 크레딧 업데이트 (서버에서 차감된 만큼 반영)
+      if (user) {
+        updateCredits(user.credits - CREDIT_COSTS.VIDEO_GENERATION);
+      }
       
+    } catch (error) {
       // 오류 발생 시 로딩 상태 해제
       setScenes(prevScenes => 
         prevScenes.map(s => 
@@ -465,8 +481,6 @@ const SynopsisView: React.FC = () => {
   
   // 직접 request_id를 사용하는 상태 확인 함수
   const checkVideoStatusDirect = async (sceneId: number, requestId: string) => {
-    console.log('직접 비디오 상태 확인 시작:', sceneId, requestId)
-    
     try {
       // 실제 API 호출
       const response = await fetch('/api/check-video-status', {
@@ -484,11 +498,9 @@ const SynopsisView: React.FC = () => {
       }
       
       const data = await response.json()
-      console.log('직접 비디오 상태 확인 응답:', data)
       
       if (data.status === 'completed') {
         // 영상 생성 완료
-        console.log('비디오 생성 완료!', data.video_url)
         setScenes(prevScenes => 
           prevScenes.map(s => 
             s.id === sceneId ? { 
@@ -501,7 +513,6 @@ const SynopsisView: React.FC = () => {
         )
       } else if (data.status === 'failed') {
         // 영상 생성 실패
-        console.log('비디오 생성 실패')
         setScenes(prevScenes => 
           prevScenes.map(s => 
             s.id === sceneId ? { 
@@ -512,15 +523,11 @@ const SynopsisView: React.FC = () => {
         )
       } else {
         // 아직 처리 중, 계속 상태 확인
-        console.log('비디오 생성 아직 진행 중, 3초 후 다시 확인')
         setTimeout(() => checkVideoStatusDirect(sceneId, requestId), 3000)
       }
       
     } catch (error) {
-      console.error('영상 상태 확인 중 오류:', error)
-      
       // 오류가 발생해도 재시도
-      console.log('비디오 상태 확인 오류, 5초 후 재시도')
       setTimeout(() => checkVideoStatusDirect(sceneId, requestId), 5000)
     }
   }
@@ -533,18 +540,12 @@ const SynopsisView: React.FC = () => {
     // 비디오 관련 속성을 사용하기 위해 타입 캐스팅
     const sceneWithVideo = scene as SceneWithVideo
     
-    // 디버깅을 위한 로그 추가
-    console.log('비디오 상태 확인 시작:', sceneId, sceneWithVideo.videoRequestId, sceneWithVideo.videoStatus)
-    
     // 요청 ID가 없거나 pending 상태가 아니면 확인 중단
     if (!sceneWithVideo.videoRequestId || sceneWithVideo.videoStatus !== 'pending') {
-      console.log('비디오 상태 확인 중단: 조건 불일치', sceneWithVideo.videoRequestId, sceneWithVideo.videoStatus)
       return
     }
     
     try {
-      console.log('비디오 상태 확인 API 호출:', sceneWithVideo.videoRequestId)
-      
       // 실제 API 호출
       const response = await fetch('/api/check-video-status', {
         method: 'POST',
@@ -561,11 +562,9 @@ const SynopsisView: React.FC = () => {
       }
       
       const data = await response.json()
-      console.log('비디오 상태 확인 응답:', data)
       
       if (data.status === 'completed') {
         // 영상 생성 완료
-        console.log('비디오 생성 완료!', data.video_url)
         setScenes(prevScenes => 
           prevScenes.map(s => 
             s.id === sceneId ? { 
@@ -578,7 +577,6 @@ const SynopsisView: React.FC = () => {
         )
       } else if (data.status === 'failed') {
         // 영상 생성 실패
-        console.log('비디오 생성 실패')
         setScenes(prevScenes => 
           prevScenes.map(s => 
             s.id === sceneId ? { 
@@ -589,15 +587,11 @@ const SynopsisView: React.FC = () => {
         )
       } else {
         // 아직 처리 중, 계속 상태 확인
-        console.log('비디오 생성 아직 진행 중, 3초 후 다시 확인')
         setTimeout(() => checkVideoStatus(sceneId), 3000)
       }
       
     } catch (error) {
-      console.error('영상 상태 확인 중 오류:', error)
-      
       // 오류가 발생해도 재시도
-      console.log('비디오 상태 확인 오류, 5초 후 재시도')
       setTimeout(() => checkVideoStatus(sceneId), 5000)
     }
   }
@@ -654,7 +648,7 @@ const SynopsisView: React.FC = () => {
           </div>
         )}
         
-        {step === 'scenes' && activeSceneIndex !== null && (
+        {step === 'scenes' && scenes.length > 0 && (
           <div className="space-y-6">
             <div className="flex justify-between items-center">
               <h2 className="text-2xl font-bold text-gray-900">씬 편집</h2>
@@ -665,12 +659,12 @@ const SynopsisView: React.FC = () => {
             
             <SceneNavigation 
               scenes={scenes}
-              activeIndex={activeSceneIndex}
+              activeIndex={activeSceneIndex ?? 0}
               onSelect={moveToScene}
             />
             
             <SceneCard
-              scene={scenes[activeSceneIndex]}
+              scene={scenes[activeSceneIndex ?? 0]}
               onUpdateText={updateSceneText}
               onGenerateImagePrompt={generateImagePrompt}
               onGenerateImages={generateImages}
@@ -681,10 +675,10 @@ const SynopsisView: React.FC = () => {
             
             <div className="flex justify-between mt-6">
               <button
-                onClick={() => activeSceneIndex > 0 && moveToScene(activeSceneIndex - 1)}
-                disabled={activeSceneIndex === 0}
+                onClick={() => (activeSceneIndex ?? 0) > 0 && moveToScene((activeSceneIndex ?? 0) - 1)}
+                disabled={(activeSceneIndex ?? 0) === 0}
                 className={`px-4 py-2 rounded-md ${
-                  activeSceneIndex === 0 
+                  (activeSceneIndex ?? 0) === 0 
                     ? 'bg-gray-200 text-gray-500 cursor-not-allowed' 
                     : 'bg-indigo-600 text-white hover:bg-indigo-700'
                 }`}
@@ -698,10 +692,10 @@ const SynopsisView: React.FC = () => {
                 JSON 내보내기
               </button>
               <button
-                onClick={() => activeSceneIndex < scenes.length - 1 && moveToScene(activeSceneIndex + 1)}
-                disabled={activeSceneIndex === scenes.length - 1}
+                onClick={() => (activeSceneIndex ?? 0) < scenes.length - 1 && moveToScene((activeSceneIndex ?? 0) + 1)}
+                disabled={(activeSceneIndex ?? 0) === scenes.length - 1}
                 className={`px-4 py-2 rounded-md ${
-                  activeSceneIndex === scenes.length - 1 
+                  (activeSceneIndex ?? 0) === scenes.length - 1 
                     ? 'bg-gray-200 text-gray-500 cursor-not-allowed' 
                     : 'bg-indigo-600 text-white hover:bg-indigo-700'
                 }`}
@@ -717,6 +711,7 @@ const SynopsisView: React.FC = () => {
         isOpen={showInsufficientCreditsModal}
         onClose={() => setShowInsufficientCreditsModal(false)}
         requiredCredits={requiredCredits}
+        operation={currentOperation}
       />
     </div>
   )

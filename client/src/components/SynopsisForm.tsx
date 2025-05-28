@@ -15,10 +15,14 @@ const SynopsisForm: React.FC<SynopsisFormProps> = ({
   setSceneCount, 
   onSubmit 
 }) => {
+  const handleSubmit = (e: React.FormEvent) => {
+    onSubmit(e);
+  };
+
   return (
     <section className="bg-white rounded-lg shadow-md p-6 mb-8">
       <h2 className="text-xl font-semibold mb-4">시놉시스 입력</h2>
-      <form onSubmit={onSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label htmlFor="synopsis" className="block text-sm font-medium text-gray-700">시놉시스</label>
           <textarea 
