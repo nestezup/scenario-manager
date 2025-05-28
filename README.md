@@ -15,7 +15,8 @@
 
 - Frontend: React, TypeScript, TailwindCSS
 - Backend: Express.js
-- API 통합: OpenAI GPT-4 및 DALL-E (또는 기타 이미지 생성 모델)
+- API 통합: Replicate, FAL.ai
+- 인증: Supabase
 
 ## 개발 환경 설정
 
@@ -30,12 +31,35 @@
    npm install
    ```
 
-2. 개발 서버 실행:
+2. 환경 변수 설정:
+   프로젝트 루트에 `.env` 파일을 생성하고 다음 변수를 설정합니다:
+   ```
+   # 서버 환경 변수
+   PORT=3000
+   NODE_ENV=development
+   SESSION_SECRET=scenario-manager-secret-key
+
+   # Supabase 설정
+   SUPABASE_URL=https://your-supabase-project-url.supabase.co
+   SUPABASE_SERVICE_KEY=your-supabase-service-key
+   SUPABASE_ANON_KEY=your-supabase-anon-key
+
+   # 애플리케이션 URL
+   APP_URL=http://localhost:3000
+
+   # 외부 API 키
+   REPLICATE_API_TOKEN=your-replicate-api-token
+   FAL_KEY=your-fal-ai-key
+   ```
+   
+   > 참고: 개발 모드에서는 Supabase 및 외부 API 키 없이도 모의 기능으로 실행할 수 있습니다.
+
+3. 개발 서버 실행:
    ```
    npm run dev
    ```
 
-3. 브라우저에서 `http://localhost:5000` 접속 (또는 표시된 포트)
+4. 브라우저에서 `http://localhost:3000` 접속
 
 ## API 엔드포인트
 
@@ -63,13 +87,19 @@
 - **요청**: `{ "image_url": "선택된 이미지 URL" }`
 - **응답**: `{ "video_prompt": "영상 프롬프트", "negative_prompt": "네거티브 프롬프트" }`
 
+## 인증 시스템
+
+- 이 애플리케이션은 Supabase를 사용한 이메일 인증을 지원합니다.
+- 개발 모드에서는 Supabase 키 없이도 모의 인증으로 테스트할 수 있습니다.
+
 ## 구현 참고사항
 
-1. 현재 버전에서는 실제 API 엔드포인트가 구현되어 있지 않습니다. API_ENDPOINTS.md 파일을 참조하여 실제 API를 구현할 수 있습니다.
+1. 자세한 API 엔드포인트 정보는 API_ENDPOINTS.md 파일을 참조하세요.
 
-2. 실제 환경에서는 OpenAI API를 사용하기 위한 API 키가 필요합니다:
-   - .env 파일에 `OPENAI_API_KEY=your-api-key` 형식으로 설정하세요.
-   - 서버 측 API 로직을 구현하여 키를 안전하게 관리해야 합니다.
+2. 실제 환경에서는 다음 API 키가 필요합니다:
+   - Supabase 프로젝트 URL 및 API 키
+   - Replicate API 토큰
+   - FAL.ai API 키
 
 ## 후속 단계
 

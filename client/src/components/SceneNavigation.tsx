@@ -1,8 +1,13 @@
 import React, { useRef } from 'react'
-import { useSceneStore } from '../store/sceneStore'
+import { Scene } from '../types'
 
-const SceneNavigation: React.FC = () => {
-  const { scenes, activeSceneIndex, setActiveSceneIndex } = useSceneStore()
+interface SceneNavigationProps {
+  scenes: Scene[]
+  activeIndex: number
+  onSelect: (index: number) => void
+}
+
+const SceneNavigation: React.FC<SceneNavigationProps> = ({ scenes, activeIndex, onSelect }) => {
   const sceneSliderRef = useRef<HTMLDivElement>(null)
   
   const getScenePreview = (text: string): string => {
@@ -28,19 +33,21 @@ const SceneNavigation: React.FC = () => {
         <button 
           onClick={() => scrollScenes('left')}
           className="bg-white shadow-md rounded-full p-2 text-gray-600 hover:text-gray-800 focus:outline-none z-10">
-          <i className="fas fa-chevron-left"></i>
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+            <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
+          </svg>
         </button>
       </div>
       
-      <div ref={sceneSliderRef} className="overflow-x-auto scrollbar-hide py-2 px-8">
+      <div ref={sceneSliderRef} className="overflow-x-auto py-2 px-8">
         <div className="flex space-x-4 min-w-max">
           {scenes.map((scene, index) => (
             <div 
               key={scene.id}
-              onClick={() => setActiveSceneIndex(index)}
+              onClick={() => onSelect(index)}
               className={`cursor-pointer border-2 rounded-md p-3 min-w-[180px] max-w-[180px] flex flex-col items-center transition-all ${
-                activeSceneIndex === index 
-                  ? 'border-primary-500 bg-primary-50' 
+                activeIndex === index 
+                  ? 'border-indigo-500 bg-indigo-50' 
                   : 'border-gray-200'
               }`}
             >
@@ -51,37 +58,53 @@ const SceneNavigation: React.FC = () => {
               
               {/* Progress Indicator */}
               <div className="w-full mt-2 flex justify-center">
-                <i 
-                  className={`${
+                <svg 
+                  className={`h-4 w-4 mx-0.5 ${
                     scene.imagePrompt 
-                      ? 'fas fa-check-circle text-green-500' 
-                      : 'far fa-circle text-gray-300'
-                  } mx-0.5`}
-                ></i>
+                      ? 'text-green-500' 
+                      : 'text-gray-300'
+                  }`}
+                  fill="currentColor" 
+                  viewBox="0 0 20 20"
+                >
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                </svg>
                 
-                <i 
-                  className={`${
+                <svg 
+                  className={`h-4 w-4 mx-0.5 ${
                     scene.images && scene.images.length 
-                      ? 'fas fa-check-circle text-green-500' 
-                      : 'far fa-circle text-gray-300'
-                  } mx-0.5`}
-                ></i>
+                      ? 'text-green-500' 
+                      : 'text-gray-300'
+                  }`}
+                  fill="currentColor" 
+                  viewBox="0 0 20 20"
+                >
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                </svg>
                 
-                <i 
-                  className={`${
+                <svg 
+                  className={`h-4 w-4 mx-0.5 ${
                     scene.selectedImage 
-                      ? 'fas fa-check-circle text-green-500' 
-                      : 'far fa-circle text-gray-300'
-                  } mx-0.5`}
-                ></i>
+                      ? 'text-green-500' 
+                      : 'text-gray-300'
+                  }`}
+                  fill="currentColor" 
+                  viewBox="0 0 20 20"
+                >
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                </svg>
                 
-                <i 
-                  className={`${
+                <svg 
+                  className={`h-4 w-4 mx-0.5 ${
                     scene.videoPrompt 
-                      ? 'fas fa-check-circle text-green-500' 
-                      : 'far fa-circle text-gray-300'
-                  } mx-0.5`}
-                ></i>
+                      ? 'text-green-500' 
+                      : 'text-gray-300'
+                  }`}
+                  fill="currentColor" 
+                  viewBox="0 0 20 20"
+                >
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                </svg>
               </div>
             </div>
           ))}
@@ -92,7 +115,9 @@ const SceneNavigation: React.FC = () => {
         <button 
           onClick={() => scrollScenes('right')}
           className="bg-white shadow-md rounded-full p-2 text-gray-600 hover:text-gray-800 focus:outline-none z-10">
-          <i className="fas fa-chevron-right"></i>
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+            <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+          </svg>
         </button>
       </div>
     </div>

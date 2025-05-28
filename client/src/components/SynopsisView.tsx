@@ -1,11 +1,21 @@
 import React, { useState, useEffect } from 'react'
-import { useSceneStore } from '../store/sceneStore'
+import { Scene, SceneWithVideo } from '../types'
 import SynopsisForm from './SynopsisForm'
 import SceneCard from './SceneCard'
 import SceneNavigation from './SceneNavigation'
 import VideoProgress from './VideoProgress'
-import { Scene, SceneWithVideo } from '../types'
+import Header from './Header'
+import InsufficientCreditsModal from './InsufficientCreditsModal'
 import { useToast } from '../hooks/use-toast'
+import useApiWithCredits from '../hooks/useApiWithCredits'
+import { useAuth } from '../contexts/AuthContext'
+
+// Credit costs for different operations
+const CREDIT_COSTS = {
+  IMAGE_GENERATION: 1,
+  PROMPT_GENERATION: 1,
+  VIDEO_GENERATION: 3
+};
 
 // Mock data arrays for demo purposes
 const sceneStarters = [
@@ -49,6 +59,9 @@ const SynopsisView: React.FC = () => {
   const [sceneCount, setSceneCount] = useState(10)
   const [scenes, setScenes] = useState<Scene[]>([])
   const [activeSceneIndex, setActiveSceneIndex] = useState<number | null>(null)
+  const [showInsufficientCreditsModal, setShowInsufficientCreditsModal] = useState(false)
+  const [requiredCredits, setRequiredCredits] = useState(0)
+  const { user } = useAuth()
   
   // Progress percentage calculation
   const getProgressPercentage = () => {
@@ -86,6 +99,14 @@ const SynopsisView: React.FC = () => {
           })
         })
         
+        if (response.status === 402) {
+          // Insufficient credits
+          setRequiredCredits(CREDIT_COSTS.PROMPT_GENERATION);
+          setShowInsufficientCreditsModal(true);
+          setStep('input');
+          return;
+        }
+        
         if (!response.ok) {
           throw new Error('API 호출 중 오류가 발생했습니다.')
         }
@@ -116,25 +137,7 @@ const SynopsisView: React.FC = () => {
         // 오류 시 모의 데이터로 폴백 (실제 환경에서는 오류 메시지 표시)
         alert('씬 분석 중 오류가 발생했습니다. 관리자에게 문의하세요.')
         
-        // 임시 폴백 코드 (개발 목적)
-        const mockScenes = Array.from({ length: sceneCount }, (_, i) => ({
-          id: i + 1,
-          text: `씬 ${i + 1}: API 오류로 인해 임시 데이터를 표시합니다.`,
-          order: i + 1,
-          imagePrompt: '',
-          images: [],
-          selectedImageIndex: null,
-          selectedImage: null,
-          videoPrompt: '',
-          negativePrompt: '',
-          loadingImagePrompt: false,
-          loadingImages: false,
-          loadingVideoPrompt: false
-        }))
-        
-        setScenes(mockScenes)
-        setActiveSceneIndex(0)
-        setStep('scenes')
+        setStep('input')
       }
     }
   }
@@ -171,6 +174,20 @@ const SynopsisView: React.FC = () => {
           scene_text: scene.text
         })
       })
+      
+      if (response.status === 402) {
+        // Insufficient credits
+        setRequiredCredits(CREDIT_COSTS.PROMPT_GENERATION);
+        setShowInsufficientCreditsModal(true);
+        
+        // Reset loading state
+        setScenes(prevScenes => 
+          prevScenes.map(scene => 
+            scene.id === sceneId ? { ...scene, loadingImagePrompt: false } : scene
+          )
+        )
+        return;
+      }
       
       if (!response.ok) {
         throw new Error('이미지 프롬프트 생성 중 오류가 발생했습니다.')
@@ -224,6 +241,20 @@ const SynopsisView: React.FC = () => {
           prompt: scene.imagePrompt
         })
       })
+      
+      if (response.status === 402) {
+        // Insufficient credits
+        setRequiredCredits(CREDIT_COSTS.IMAGE_GENERATION);
+        setShowInsufficientCreditsModal(true);
+        
+        // Reset loading state
+        setScenes(prevScenes => 
+          prevScenes.map(s => 
+            s.id === sceneId ? { ...s, loadingImages: false } : s
+          )
+        )
+        return;
+      }
       
       if (!response.ok) {
         throw new Error('이미지 생성 중 오류가 발생했습니다.')
@@ -588,436 +619,91 @@ const SynopsisView: React.FC = () => {
   }
   
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50">
-      {/* Header with Progress Bar */}
-      <header className="bg-white shadow-sm sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex justify-between items-center">
-            <h1 className="text-xl font-bold text-gray-800">시놉시스 기반 영상 제작 자동화</h1>
-            
-            {step === 'scenes' && (
-              <div className="flex items-center space-x-4">
-                <span className="text-sm text-gray-600">진행률: {getProgressPercentage()}%</span>
-                <div className="w-32 bg-gray-200 rounded-full h-2.5">
-                  <div 
-                    className="bg-blue-600 h-2.5 rounded-full" 
-                    style={{ width: `${getProgressPercentage()}%` }}
-                  ></div>
-                </div>
-                <button 
-                  onClick={downloadJSON}
-                  disabled={!scenes.some(s => s.videoPrompt)}
-                  className={`px-3 py-1 rounded-md text-sm font-medium text-white ${
-                    scenes.some(s => s.videoPrompt) 
-                      ? 'bg-blue-600 hover:bg-blue-700' 
-                      : 'bg-gray-300 cursor-not-allowed'
-                  }`}
-                >
-                  JSON 다운로드
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      </header>
+    <div className="min-h-screen bg-gray-50">
+      <Header />
       
-      {/* Main Content */}
-      <main className="flex-1">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          {/* Synopsis Input Section */}
-          {step === 'input' && (
-            <section className="bg-white rounded-lg shadow-md p-6 mb-8">
-              <h2 className="text-lg font-semibold mb-4">시놉시스 입력</h2>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div>
-                  <label htmlFor="synopsis" className="block text-sm font-medium text-gray-700">시놉시스</label>
-                  <textarea 
-                    id="synopsis" 
-                    value={synopsis}
-                    onChange={(e) => setSynopsis(e.target.value)}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-3 h-40 border"
-                    placeholder="영상으로 만들고 싶은 이야기를 자유롭게 입력해주세요. (예: 소년이 숲속에서 신비한 생명체를 만나게 되고...)"
-                  ></textarea>
-                </div>
-                
-                <div>
-                  <label htmlFor="scene-count" className="block text-sm font-medium text-gray-700">씬 개수: {sceneCount}</label>
-                  <input 
-                    type="range" 
-                    id="scene-count" 
-                    min="5" 
-                    max="20" 
-                    step="1"
-                    value={sceneCount}
-                    onChange={(e) => setSceneCount(parseInt(e.target.value))}
-                    className="mt-2 w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-                  />
-                  <div className="flex justify-between text-xs text-gray-500">
-                    <span>5</span>
-                    <span>10</span>
-                    <span>15</span>
-                    <span>20</span>
-                  </div>
-                </div>
-                
-                <div className="flex justify-end">
-                  <button 
-                    type="submit"
-                    disabled={!synopsis.trim()}
-                    className={`inline-flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white ${
-                      synopsis.trim() ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-300 cursor-not-allowed'
-                    }`}
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 4v16M17 4v16M3 8h18M3 16h18" />
-                    </svg>
-                    씬 분해
-                  </button>
-                </div>
-              </form>
-            </section>
-          )}
-          
-          {/* Processing State */}
-          {step === 'processing' && (
-            <section className="bg-white rounded-lg shadow-md p-6 mb-8 text-center">
-              <div className="animate-pulse flex flex-col items-center py-10">
-                <div className="rounded-full bg-blue-400 h-10 w-10 mb-4"></div>
-                <p className="text-lg text-gray-700">시놉시스를 분석하여 씬을 생성하고 있습니다...</p>
-                <p className="text-sm text-gray-500 mt-2">잠시만 기다려주세요.</p>
+      <main className="container mx-auto px-4 py-8">
+        {step === 'input' && (
+          <SynopsisForm 
+            synopsis={synopsis} 
+            setSynopsis={setSynopsis} 
+            sceneCount={sceneCount}
+            setSceneCount={setSceneCount}
+            onSubmit={handleSubmit}
+          />
+        )}
+        
+        {step === 'processing' && (
+          <div className="flex flex-col items-center justify-center min-h-[60vh]">
+            <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-indigo-500"></div>
+            <p className="mt-4 text-lg text-gray-700">씬을 분석하고 있습니다...</p>
+          </div>
+        )}
+        
+        {step === 'scenes' && activeSceneIndex !== null && (
+          <div className="space-y-6">
+            <div className="flex justify-between items-center">
+              <h2 className="text-2xl font-bold text-gray-900">씬 편집</h2>
+              <div className="text-sm text-gray-500">
+                진행률: {getProgressPercentage()}%
               </div>
-            </section>
-          )}
-          
-          {/* Scenes View with Navigation */}
-          {step === 'scenes' && (
-            <div className="space-y-6">
-              {/* Scene Navigation */}
-              <div className="bg-white rounded-lg shadow-md p-4">
-                <div className="flex justify-between items-center mb-4">
-                  <h2 className="text-lg font-semibold">씬 편집</h2>
-                  <button 
-                    onClick={() => setStep('input')}
-                    className="text-blue-600 hover:text-blue-800 text-sm font-medium"
-                  >
-                    <svg className="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                    </svg>
-                    시놉시스로 돌아가기
-                  </button>
-                </div>
-                
-                <div className="flex overflow-x-auto space-x-2 pb-2">
-                  {scenes.map((scene, index) => (
-                    <div 
-                      key={scene.id}
-                      onClick={() => setActiveSceneIndex(index)}
-                      className={`flex-shrink-0 cursor-pointer p-3 rounded-md border ${
-                        activeSceneIndex === index 
-                          ? 'border-blue-500 bg-blue-50' 
-                          : 'border-gray-200 hover:bg-gray-50'
-                      }`}
-                    >
-                      <div className="w-24 flex flex-col items-center">
-                        <div className="font-medium text-gray-700 mb-1">씬 {index + 1}</div>
-                        <div className="flex mt-1">
-                          <span className={`w-2 h-2 rounded-full ${scene.imagePrompt ? 'bg-green-500' : 'bg-gray-300'} mx-0.5`}></span>
-                          <span className={`w-2 h-2 rounded-full ${scene.images?.length ? 'bg-green-500' : 'bg-gray-300'} mx-0.5`}></span>
-                          <span className={`w-2 h-2 rounded-full ${scene.selectedImage ? 'bg-green-500' : 'bg-gray-300'} mx-0.5`}></span>
-                          <span className={`w-2 h-2 rounded-full ${scene.videoPrompt ? 'bg-green-500' : 'bg-gray-300'} mx-0.5`}></span>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              
-              {/* Active Scene Card */}
-              {activeSceneIndex !== null && scenes[activeSceneIndex] && (
-                <div className="bg-white rounded-lg shadow-md p-6">
-                  <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-lg font-medium">씬 {activeSceneIndex + 1}</h3>
-                    <div className="flex space-x-2">
-                      <button 
-                        onClick={() => moveToScene(activeSceneIndex - 1)}
-                        disabled={activeSceneIndex === 0}
-                        className={`p-1 rounded ${activeSceneIndex === 0 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-600 hover:bg-gray-100'}`}
-                      >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                        </svg>
-                      </button>
-                      <button 
-                        onClick={() => moveToScene(activeSceneIndex + 1)}
-                        disabled={activeSceneIndex === scenes.length - 1}
-                        className={`p-1 rounded ${activeSceneIndex === scenes.length - 1 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-600 hover:bg-gray-100'}`}
-                      >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                        </svg>
-                      </button>
-                    </div>
-                  </div>
-                  
-                  {/* Scene Text Editor */}
-                  <div className="mb-6">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">씬 내용</label>
-                    <textarea 
-                      value={scenes[activeSceneIndex].text} 
-                      onChange={(e) => updateSceneText(scenes[activeSceneIndex].id, e.target.value)}
-                      className="w-full border border-gray-300 rounded-md shadow-sm px-4 py-2 h-24 focus:border-blue-500 focus:ring-blue-500"
-                    ></textarea>
-                  </div>
-                  
-                  {/* Workflow Steps */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* Step 1: Image Prompt */}
-                    <div className="border border-gray-200 rounded-md p-4">
-                      <div className="flex justify-between items-center mb-3">
-                        <h4 className="font-medium text-gray-800">1. 이미지 프롬프트</h4>
-                        <button 
-                          onClick={() => generateImagePrompt(scenes[activeSceneIndex].id)}
-                          disabled={!scenes[activeSceneIndex].text.trim() || scenes[activeSceneIndex].loadingImagePrompt}
-                          className={`px-2 py-1 rounded-md text-xs font-medium ${
-                            !scenes[activeSceneIndex].text.trim() || scenes[activeSceneIndex].loadingImagePrompt 
-                              ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
-                              : 'bg-blue-600 text-white hover:bg-blue-700'
-                          }`}
-                        >
-                          {scenes[activeSceneIndex].loadingImagePrompt ? '생성중...' : '생성하기'}
-                        </button>
-                      </div>
-                      
-                      {/* Prompt Display and Edit */}
-                      {scenes[activeSceneIndex].imagePrompt && (
-                        <div className="rounded-md">
-                          <label className="block text-sm font-medium text-gray-700 mb-1">프롬프트 수정</label>
-                          <textarea 
-                            value={scenes[activeSceneIndex].imagePrompt} 
-                            onChange={(e) => {
-                              setScenes(prevScenes => 
-                                prevScenes.map(scene => 
-                                  scene.id === scenes[activeSceneIndex].id 
-                                    ? { ...scene, imagePrompt: e.target.value } 
-                                    : scene
-                                )
-                              )
-                            }}
-                            className="w-full border border-gray-300 rounded-md shadow-sm px-3 py-2 h-20 text-sm font-mono focus:border-blue-500 focus:ring-blue-500"
-                          ></textarea>
-                        </div>
-                      )}
-                    </div>
-                    
-                    {/* Step 2: Generate & Select Images */}
-                    <div className="border border-gray-200 rounded-md p-4">
-                      <div className="flex justify-between items-center mb-3">
-                        <h4 className="font-medium text-gray-800">2. 이미지 생성 및 선택</h4>
-                        <button 
-                          onClick={() => generateImages(scenes[activeSceneIndex].id)}
-                          disabled={!scenes[activeSceneIndex].imagePrompt || scenes[activeSceneIndex].loadingImages}
-                          className={`px-2 py-1 rounded-md text-xs font-medium ${
-                            !scenes[activeSceneIndex].imagePrompt || scenes[activeSceneIndex].loadingImages 
-                              ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
-                              : 'bg-blue-600 text-white hover:bg-blue-700'
-                          }`}
-                        >
-                          {scenes[activeSceneIndex].loadingImages ? '생성중...' : '이미지 생성'}
-                        </button>
-                      </div>
-                      
-                      {/* Images Display */}
-                      {scenes[activeSceneIndex].images && scenes[activeSceneIndex].images.length > 0 && (
-                        <div className="grid grid-cols-3 gap-2">
-                          {scenes[activeSceneIndex].images.map((image, idx) => (
-                            <div 
-                              key={idx}
-                              onClick={() => selectImage(scenes[activeSceneIndex].id, idx)}
-                              className={`relative cursor-pointer rounded-md overflow-hidden ${
-                                scenes[activeSceneIndex].selectedImageIndex === idx ? 'ring-2 ring-blue-500 ring-offset-2' : ''
-                              }`}
-                            >
-                              <div className="aspect-[9/16] w-full flex items-center justify-center bg-gray-50">
-                                <div className="h-full w-full">
-                                  <img 
-                                    src={image} 
-                                    alt={`Scene ${activeSceneIndex + 1} option ${idx + 1}`} 
-                                    className="h-full w-full object-contain"
-                                    style={{ maxHeight: '100%', maxWidth: '100%' }}
-                                  />
-                                </div>
-                              </div>
-                              {scenes[activeSceneIndex].selectedImageIndex === idx && (
-                                <div className="absolute top-1 right-1 bg-blue-500 rounded-full w-5 h-5 flex items-center justify-center">
-                                  <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-                                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                                  </svg>
-                                </div>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                    
-                    {/* Step 3: Video Prompt Generation */}
-                    <div className="border border-gray-200 rounded-md p-4 md:col-span-2">
-                      <div className="flex justify-between items-center mb-3">
-                        <h4 className="font-medium text-gray-800">3. 영상 프롬프트 생성</h4>
-                        <button 
-                          onClick={() => generateVideoPrompt(scenes[activeSceneIndex].id)}
-                          disabled={!scenes[activeSceneIndex].selectedImage || scenes[activeSceneIndex].loadingVideoPrompt}
-                          className={`px-2 py-1 rounded-md text-xs font-medium ${
-                            !scenes[activeSceneIndex].selectedImage || scenes[activeSceneIndex].loadingVideoPrompt 
-                              ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
-                              : 'bg-blue-600 text-white hover:bg-blue-700'
-                          }`}
-                        >
-                          {scenes[activeSceneIndex].loadingVideoPrompt ? '생성중...' : '프롬프트 생성'}
-                        </button>
-                      </div>
-                      
-                      {/* Video Prompt Display */}
-                      {scenes[activeSceneIndex].videoPrompt && (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">영상 프롬프트</label>
-                            <textarea 
-                              value={scenes[activeSceneIndex].videoPrompt} 
-                              onChange={(e) => {
-                                setScenes(prevScenes => 
-                                  prevScenes.map(scene => 
-                                    scene.id === scenes[activeSceneIndex].id 
-                                      ? { ...scene, videoPrompt: e.target.value } 
-                                      : scene
-                                  )
-                                )
-                              }}
-                              className="w-full border border-gray-300 rounded-md shadow-sm px-3 py-2 h-32 text-sm font-mono focus:border-blue-500 focus:ring-blue-500"
-                            ></textarea>
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Negative Prompt</label>
-                            <textarea 
-                              value={scenes[activeSceneIndex].negativePrompt} 
-                              onChange={(e) => {
-                                setScenes(prevScenes => 
-                                  prevScenes.map(scene => 
-                                    scene.id === scenes[activeSceneIndex].id 
-                                      ? { ...scene, negativePrompt: e.target.value } 
-                                      : scene
-                                  )
-                                )
-                              }}
-                              className="w-full border border-gray-300 rounded-md shadow-sm px-3 py-2 h-32 text-sm font-mono focus:border-blue-500 focus:ring-blue-500"
-                            ></textarea>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  
-                    {/* Step 4: Video Generation */}
-                    <div className="border border-gray-200 rounded-md p-4 md:col-span-2 mt-6">
-                      <div className="flex justify-between items-center mb-3">
-                        <h4 className="font-medium text-gray-800">4. 영상 생성</h4>
-                        <button 
-                          onClick={() => generateVideo(scenes[activeSceneIndex].id)}
-                          disabled={!scenes[activeSceneIndex].videoPrompt || !scenes[activeSceneIndex].selectedImage}
-                          className={`px-4 py-1 rounded-md text-xs font-medium ${
-                            scenes[activeSceneIndex].videoPrompt && scenes[activeSceneIndex].selectedImage
-                              ? 'bg-blue-600 text-white hover:bg-blue-700' 
-                              : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                          }`}
-                        >
-                          영상 생성
-                        </button>
-                      </div>
-                      
-                      {/* Video Generation Status */}
-                      {(scenes[activeSceneIndex] as SceneWithVideo).loadingVideo ? (
-                        <div className="flex items-center text-gray-500 text-sm py-2">
-                          <span>영상 생성 요청 처리 중...</span>
-                        </div>
-                      ) : (scenes[activeSceneIndex] as SceneWithVideo).videoStatus === 'pending' ? (
-                        <div className="text-center py-3">
-                          <VideoProgress scene={scenes[activeSceneIndex] as SceneWithVideo} />
-                        </div>
-                      ) : (scenes[activeSceneIndex] as SceneWithVideo).videoStatus === 'completed' && (scenes[activeSceneIndex] as SceneWithVideo).thumbnailUrl ? (
-                        <div className="flex items-center space-x-4">
-                          <div className="relative w-32 bg-gray-100 rounded overflow-hidden">
-                            <div className="aspect-[9/16] w-full overflow-hidden">
-                              <img 
-                                src={(scenes[activeSceneIndex] as SceneWithVideo).thumbnailUrl} 
-                                alt="영상 썸네일" 
-                                className="w-full h-full object-contain"
-                                style={{ maxHeight: '100%', maxWidth: '100%' }}
-                              />
-                            </div>
-                            <a 
-                              href={(scenes[activeSceneIndex] as SceneWithVideo).videoUrl} 
-                              target="_blank" 
-                              rel="noopener noreferrer"
-                              className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-30 hover:bg-opacity-40"
-                            >
-                              <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center">
-                                <svg className="w-4 h-4 text-blue-500" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-                                  <path d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z"></path>
-                                </svg>
-                              </div>
-                            </a>
-                          </div>
-                          <div>
-                            <div className="font-medium">세로형 영상 (9:16)</div>
-                            <button 
-                              onClick={async () => {
-                                try {
-                                  const success = await useSceneStore.getState().downloadVideo(
-                                    (scenes[activeSceneIndex] as SceneWithVideo).videoUrl || '', 
-                                    `scene_${scenes[activeSceneIndex].id}_video.mp4`
-                                  );
-                                  // 성공/실패 메시지는 콘솔에 표시
-                                  if (success) {
-                                    console.log('영상이 다운로드되었습니다.');
-                                  } else {
-                                    console.error('영상 다운로드 중 오류가 발생했습니다.');
-                                  }
-                                } catch (error) {
-                                  console.error('다운로드 오류:', error);
-                                }
-                              }}
-                              className="text-blue-500 text-sm hover:underline flex items-center mt-1"
-                            >
-                              <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                              </svg>
-                              다운로드
-                            </button>
-                          </div>
-                        </div>
-                      ) : (scenes[activeSceneIndex] as SceneWithVideo).videoStatus === 'failed' ? (
-                        <div className="text-center py-3 text-red-500">
-                          영상 생성 중 오류가 발생했습니다. 다시 시도해 주세요.
-                        </div>
-                      ) : (
-                        <div className="py-2 text-sm text-gray-500">
-                          영상 프롬프트를 생성한 후 영상을 생성하세요.
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
             </div>
-          )}
-        </div>
+            
+            <SceneNavigation 
+              scenes={scenes}
+              activeIndex={activeSceneIndex}
+              onSelect={moveToScene}
+            />
+            
+            <SceneCard
+              scene={scenes[activeSceneIndex]}
+              onUpdateText={updateSceneText}
+              onGenerateImagePrompt={generateImagePrompt}
+              onGenerateImages={generateImages}
+              onSelectImage={selectImage}
+              onGenerateVideoPrompt={generateVideoPrompt}
+              onGenerateVideo={generateVideo}
+            />
+            
+            <div className="flex justify-between mt-6">
+              <button
+                onClick={() => activeSceneIndex > 0 && moveToScene(activeSceneIndex - 1)}
+                disabled={activeSceneIndex === 0}
+                className={`px-4 py-2 rounded-md ${
+                  activeSceneIndex === 0 
+                    ? 'bg-gray-200 text-gray-500 cursor-not-allowed' 
+                    : 'bg-indigo-600 text-white hover:bg-indigo-700'
+                }`}
+              >
+                이전 씬
+              </button>
+              <button
+                onClick={downloadJSON}
+                className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+              >
+                JSON 내보내기
+              </button>
+              <button
+                onClick={() => activeSceneIndex < scenes.length - 1 && moveToScene(activeSceneIndex + 1)}
+                disabled={activeSceneIndex === scenes.length - 1}
+                className={`px-4 py-2 rounded-md ${
+                  activeSceneIndex === scenes.length - 1 
+                    ? 'bg-gray-200 text-gray-500 cursor-not-allowed' 
+                    : 'bg-indigo-600 text-white hover:bg-indigo-700'
+                }`}
+              >
+                다음 씬
+              </button>
+            </div>
+          </div>
+        )}
       </main>
       
-      {/* Footer */}
-      <footer className="bg-white border-t border-gray-200 py-4 mt-auto">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <p className="text-center text-sm text-gray-500">시놉시스 기반 영상 제작 자동화 POC v0.1 © 2025</p>
-        </div>
-      </footer>
+      <InsufficientCreditsModal 
+        isOpen={showInsufficientCreditsModal}
+        onClose={() => setShowInsufficientCreditsModal(false)}
+        requiredCredits={requiredCredits}
+      />
     </div>
   )
 }

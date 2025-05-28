@@ -1,26 +1,26 @@
 import React, { useState, useEffect } from 'react'
 import { Scene, SceneWithVideo } from '../types'
-import { useSceneStore } from '../store/sceneStore'
 import VideoProgress from './VideoProgress'
 
 interface SceneCardProps {
-  scene: Scene
-  index: number
+  scene: Scene;
+  onUpdateText: (sceneId: number, newText: string) => void;
+  onGenerateImagePrompt: (sceneId: number) => Promise<void>;
+  onGenerateImages: (sceneId: number) => Promise<void>;
+  onSelectImage: (sceneId: number, imageIndex: number) => void;
+  onGenerateVideoPrompt: (sceneId: number) => Promise<void>;
+  onGenerateVideo: (sceneId: number) => Promise<void>;
 }
 
-const SceneCard: React.FC<SceneCardProps> = ({ scene, index }) => {
-  const { 
-    scenes, 
-    updateSceneText, 
-    generateImagePromptForScene, 
-    generateImagesForScene, 
-    selectImage, 
-    generateVideoPromptForScene,
-    generateVideoForScene,
-    moveScene,
-    deleteScene
-  } = useSceneStore()
-  
+const SceneCard: React.FC<SceneCardProps> = ({ 
+  scene, 
+  onUpdateText, 
+  onGenerateImagePrompt, 
+  onGenerateImages, 
+  onSelectImage,
+  onGenerateVideoPrompt,
+  onGenerateVideo
+}) => {
   const [text, setText] = useState(scene.text)
   
   // Update local state when scene changes
@@ -34,7 +34,7 @@ const SceneCard: React.FC<SceneCardProps> = ({ scene, index }) => {
   }
   
   const handleTextBlur = () => {
-    updateSceneText(index, text)
+    onUpdateText(scene.id, text)
   }
 
   // 씬 타입 캐스팅
@@ -76,27 +76,16 @@ const SceneCard: React.FC<SceneCardProps> = ({ scene, index }) => {
           </div>
           <div>
             <div className="font-medium">세로형 영상 (9:16)</div>
-            <button 
-              onClick={async () => {
-                const success = await useSceneStore.getState().downloadVideo(
-                  sceneWithVideo.videoUrl || '', 
-                  `scene_${sceneWithVideo.id}_video.mp4`
-                );
-                if (success) {
-                  // 성공 메시지 (옵션)
-                  console.log('영상이 다운로드되었습니다.');
-                } else {
-                  // 실패 메시지 (옵션)
-                  console.log('영상 다운로드 중 오류가 발생했습니다.');
-                }
-              }}
+            <a
+              href={sceneWithVideo.videoUrl || '#'} 
+              download={`scene_${scene.id}_video.mp4`}
               className="text-blue-500 text-sm hover:underline flex items-center mt-1"
             >
               <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
               </svg>
               다운로드
-            </button>
+            </a>
           </div>
         </div>
       )
@@ -116,27 +105,7 @@ const SceneCard: React.FC<SceneCardProps> = ({ scene, index }) => {
   }
   
   return (
-    <div className="bg-white p-4 rounded-lg">
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-xl font-medium">씬 {index + 1}</h2>
-        <div className="flex space-x-2">
-          <button
-            onClick={() => moveScene(-1)}
-            disabled={index === 0}
-            className="text-gray-400 px-2"
-          >
-            &lt;
-          </button>
-          <button
-            onClick={() => moveScene(1)}
-            disabled={index === scenes.length - 1}
-            className="text-gray-400 px-2"
-          >
-            &gt;
-          </button>
-        </div>
-      </div>
-      
+    <div className="bg-white p-6 rounded-lg shadow-md">
       {/* 씬 내용 */}
       <div className="mb-6">
         <label className="block text-sm font-medium text-gray-700 mb-2">씬 내용</label>
@@ -144,7 +113,7 @@ const SceneCard: React.FC<SceneCardProps> = ({ scene, index }) => {
           value={text} 
           onChange={handleTextChange}
           onBlur={handleTextBlur}
-          className="w-full border border-gray-300 rounded-md p-3 h-24"
+          className="w-full border border-gray-300 rounded-md p-3 h-24 focus:border-indigo-500 focus:ring-indigo-500"
           placeholder="씬 내용을 입력하세요"
         ></textarea>
       </div>
@@ -159,15 +128,15 @@ const SceneCard: React.FC<SceneCardProps> = ({ scene, index }) => {
           <div className="flex justify-between items-center mb-3">
             <h3 className="text-lg font-medium">1. 이미지 프롬프트</h3>
             <button 
-              onClick={generateImagePromptForScene}
-              disabled={!text.trim()}
+              onClick={() => onGenerateImagePrompt(scene.id)}
+              disabled={!text.trim() || scene.loadingImagePrompt}
               className={`px-4 py-1 rounded-md text-sm ${
-                text.trim() 
-                  ? 'bg-blue-600 text-white' 
-                  : 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                !text.trim() || scene.loadingImagePrompt
+                  ? 'bg-gray-200 text-gray-500 cursor-not-allowed' 
+                  : 'bg-indigo-600 text-white hover:bg-indigo-700'
               }`}
             >
-              생성하기
+              {scene.loadingImagePrompt ? '생성중...' : '생성하기'}
             </button>
           </div>
           
@@ -187,15 +156,15 @@ const SceneCard: React.FC<SceneCardProps> = ({ scene, index }) => {
           <div className="flex justify-between items-center mb-3">
             <h3 className="text-lg font-medium">2. 이미지 생성 및 선택</h3>
             <button 
-              onClick={generateImagesForScene}
-              disabled={!scene.imagePrompt}
+              onClick={() => onGenerateImages(scene.id)}
+              disabled={!scene.imagePrompt || scene.loadingImages}
               className={`px-4 py-1 rounded-md text-sm ${
-                scene.imagePrompt 
-                  ? 'bg-blue-600 text-white' 
-                  : 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                !scene.imagePrompt || scene.loadingImages
+                  ? 'bg-gray-200 text-gray-500 cursor-not-allowed' 
+                  : 'bg-indigo-600 text-white hover:bg-indigo-700'
               }`}
             >
-              이미지 생성
+              {scene.loadingImages ? '생성중...' : '이미지 생성'}
             </button>
           </div>
           
@@ -206,25 +175,22 @@ const SceneCard: React.FC<SceneCardProps> = ({ scene, index }) => {
               {scene.images.map((image, idx) => (
                 <div 
                   key={idx}
-                  onClick={() => selectImage(idx)}
-                  className={`relative cursor-pointer rounded overflow-hidden ${
-                    scene.selectedImageIndex === idx ? 'ring-2 ring-blue-500' : ''
+                  onClick={() => onSelectImage(scene.id, idx)}
+                  className={`relative cursor-pointer rounded-md overflow-hidden ${
+                    scene.selectedImageIndex === idx ? 'ring-2 ring-indigo-500' : ''
                   }`}
                 >
-                  <div className="aspect-[9/16] w-full flex items-center justify-center bg-gray-50">
-                    <div className="h-full w-full">
-                      <img 
-                        src={image} 
-                        className="h-full w-full object-contain" 
-                        alt={`Scene ${index + 1} image option ${idx + 1}`}
-                        style={{ maxHeight: '100%', maxWidth: '100%' }}
-                      />
-                    </div>
+                  <div className="aspect-[9/16] w-full">
+                    <img 
+                      src={image} 
+                      alt={`Option ${idx + 1}`} 
+                      className="h-full w-full object-cover"
+                    />
                   </div>
                   {scene.selectedImageIndex === idx && (
-                    <div className="absolute top-1 right-1 bg-blue-500 rounded-full w-5 h-5 flex items-center justify-center">
-                      <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    <div className="absolute top-2 right-2 bg-indigo-500 rounded-full w-6 h-6 flex items-center justify-center">
+                      <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                       </svg>
                     </div>
                   )}
@@ -241,36 +207,36 @@ const SceneCard: React.FC<SceneCardProps> = ({ scene, index }) => {
           <div className="flex justify-between items-center mb-3">
             <h3 className="text-lg font-medium">3. 영상 프롬프트 생성</h3>
             <button 
-              onClick={generateVideoPromptForScene}
-              disabled={!scene.selectedImage}
+              onClick={() => onGenerateVideoPrompt(scene.id)}
+              disabled={!scene.selectedImage || scene.loadingVideoPrompt}
               className={`px-4 py-1 rounded-md text-sm ${
-                scene.selectedImage 
-                  ? 'bg-blue-600 text-white' 
-                  : 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                !scene.selectedImage || scene.loadingVideoPrompt
+                  ? 'bg-gray-200 text-gray-500 cursor-not-allowed' 
+                  : 'bg-indigo-600 text-white hover:bg-indigo-700'
               }`}
             >
-              프롬프트 생성
+              {scene.loadingVideoPrompt ? '생성중...' : '프롬프트 생성'}
             </button>
           </div>
           
           {scene.loadingVideoPrompt ? (
             <div className="py-2 text-sm text-gray-500">영상 프롬프트 생성 중...</div>
           ) : scene.videoPrompt ? (
-            <div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-2">
-                <div>
-                  <div className="text-sm font-medium mb-1">영상 프롬프트:</div>
-                  <div className="bg-gray-50 p-3 rounded border border-gray-100 min-h-[60px]">
-                    {scene.videoPrompt}
-                  </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">영상 프롬프트</label>
+                <div className="bg-gray-50 p-3 rounded border border-gray-100 min-h-[100px]">
+                  {scene.videoPrompt}
                 </div>
+              </div>
+              {scene.negativePrompt && (
                 <div>
-                  <div className="text-sm font-medium mb-1">Negative 프롬프트:</div>
-                  <div className="bg-gray-50 p-3 rounded border border-gray-100 min-h-[60px]">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Negative Prompt</label>
+                  <div className="bg-gray-50 p-3 rounded border border-gray-100 min-h-[100px]">
                     {scene.negativePrompt}
                   </div>
                 </div>
-              </div>
+              )}
             </div>
           ) : (
             <div className="py-2 text-sm text-gray-500">이미지를 선택한 후 영상 프롬프트를 생성하세요.</div>
@@ -282,11 +248,11 @@ const SceneCard: React.FC<SceneCardProps> = ({ scene, index }) => {
           <div className="flex justify-between items-center mb-3">
             <h3 className="text-lg font-medium">4. 영상 생성</h3>
             <button 
-              onClick={generateVideoForScene}
+              onClick={() => onGenerateVideo(scene.id)}
               disabled={!scene.videoPrompt || !scene.selectedImage}
               className={`px-4 py-1 rounded-md text-sm ${
                 scene.videoPrompt && scene.selectedImage
-                  ? 'bg-blue-600 text-white' 
+                  ? 'bg-indigo-600 text-white hover:bg-indigo-700' 
                   : 'bg-gray-200 text-gray-500 cursor-not-allowed'
               }`}
             >
