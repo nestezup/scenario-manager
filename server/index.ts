@@ -124,41 +124,27 @@ app.use('/api', async (req: Request & { user?: any }, res: Response, next: NextF
     if (!user) {
       console.error('Auth middleware - User not found in database:', userId);
       
-      // In development, try to create the user automatically
-      if (process.env.NODE_ENV === 'development') {
-        try {
-          console.log('Auth middleware - Attempting to create missing user in development mode');
-          const { data: newUser, error: insertError } = await supabase
-            .from('users')
-            .insert([
-              { 
-                id: userId, 
-                email: 'auto-created@example.com', // Use default email
-                credits: 10, // Initial credits
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString()
-              }
-            ])
-            .select()
-            .single();
-            
-          if (insertError) {
-            console.error('Auth middleware - Failed to create user:', insertError);
-          } else if (newUser) {
-            console.log('Auth middleware - Created missing user:', newUser);
-            req.user = newUser;
-            return next();
+      // 사용자가 없으면 새로 생성 (자동 사용자 등록)
+      console.log("Auto-creating user:", userId);
+      const { data: newUser, error: insertError } = await supabase
+        .from('users')
+        .insert([
+          { 
+            id: userId, 
+            email: `user-${userId.substring(0, 8)}@example.com`, // 임시 이메일 생성
+            credits: 100, // 초기 크레딧
+            created_at: new Date().toISOString()
           }
-        } catch (createError) {
-          console.error('Auth middleware - Error creating user:', createError);
-        }
-      }
+        ])
+        .select();
       
-      // Clear invalid session
-      req.session.destroy(() => {
-        res.status(401).json({ message: "Invalid session - User not found" });
-      });
-      return;
+      if (insertError) {
+        console.error('Auth middleware - Failed to create user:', insertError);
+      } else if (newUser) {
+        console.log('Auth middleware - Created missing user:', newUser);
+        req.user = newUser;
+        return next();
+      }
     }
 
     // Attach user to request

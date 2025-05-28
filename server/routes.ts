@@ -331,14 +331,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Check if user is authenticated and has enough credits
       if (req.user) {
+        const currentCredits = await creditsService.getUserCredits(req.user.id);
+        const requiredCredits = CREDIT_COSTS.IMAGE_GENERATION * 3; // 3개의 이미지를 생성하므로 15크레딧 필요
+        
+        console.log(`크레딧 확인: 사용자=${req.user.id}, 현재 크레딧=${currentCredits}, 필요 크레딧=${requiredCredits}`);
+        
         const hasCredits = await creditsService.hasEnoughCredits(
           req.user.id, 
-          CREDIT_COSTS.IMAGE_GENERATION
+          requiredCredits
         );
         
         if (!hasCredits) {
           return res.status(402).json({ 
-            message: "Insufficient credits to perform this operation" 
+            success: false,
+            message: `크레딧이 부족합니다. 이미지 생성을 위해서는 ${requiredCredits}개의 크레딧이 필요하지만, 현재 ${currentCredits}개의 크레딧만 보유하고 있습니다.`,
+            requiredCredits: requiredCredits,
+            currentCredits: currentCredits
           });
         }
       }
@@ -453,8 +461,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (req.user) {
           await creditsService.deductCredits(
             req.user.id,
-            CREDIT_COSTS.IMAGE_GENERATION,
-            "Image generation"
+            CREDIT_COSTS.IMAGE_GENERATION * 3, // 3개의 이미지를 생성하므로 이미지당 5크레딧 * 3 = 15크레딧 차감
+            "Image generation (3 images)"
           );
         }
         
@@ -478,9 +486,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Describe image and generate video prompt
-  app.post("/api/describe-image", async (req, res) => {
+  app.post("/api/describe-image", async (req: Request & { user?: any }, res) => {
     try {
       const data = describeImageRequestSchema.parse(req.body);
+
+      // Check if user is authenticated and has enough credits
+      if (req.user) {
+        const currentCredits = await creditsService.getUserCredits(req.user.id);
+        const requiredCredits = CREDIT_COSTS.PROMPT_GENERATION;
+        
+        console.log(`크레딧 확인: 사용자=${req.user.id}, 현재 크레딧=${currentCredits}, 필요 크레딧=${requiredCredits}`);
+        
+        const hasCredits = await creditsService.hasEnoughCredits(
+          req.user.id, 
+          requiredCredits
+        );
+        
+        if (!hasCredits) {
+          return res.status(402).json({ 
+            success: false,
+            message: `크레딧이 부족합니다. 영상 프롬프트 생성을 위해서는 ${requiredCredits}개의 크레딧이 필요하지만, 현재 ${currentCredits}개의 크레딧만 보유하고 있습니다.`,
+            requiredCredits: requiredCredits,
+            currentCredits: currentCredits
+          });
+        }
+      }
 
       console.log("영상 프롬프트 생성 요청:", data.image_url);
 
@@ -516,10 +546,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
           throw new Error("영상 프롬프트 생성 결과가 올바른 형식이 아닙니다");
         }
 
+        // Return the video and negative prompts
         res.json({
           video_prompt: result.video_prompt,
           negative_prompt: result.negative_prompt,
         });
+        
+        // Deduct credits after successful operation
+        if (req.user) {
+          await creditsService.deductCredits(
+            req.user.id,
+            CREDIT_COSTS.PROMPT_GENERATION,
+            "Video prompt generation"
+          );
+        }
       } catch (apiError: any) {
         console.error("영상 프롬프트 생성 API 오류:", apiError);
 

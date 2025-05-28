@@ -12,9 +12,10 @@ import { useAuth } from '../contexts/AuthContext'
 
 // Credit costs for different operations
 const CREDIT_COSTS = {
-  IMAGE_GENERATION: 1,
-  PROMPT_GENERATION: 1,
-  VIDEO_GENERATION: 3
+  IMAGE_GENERATION: 15,
+  PROMPT_GENERATION: 5,
+  VIDEO_GENERATION: 10,
+  SCENE_PARSING: 5
 };
 
 // Mock data arrays for demo purposes
@@ -326,6 +327,19 @@ const SynopsisView: React.FC = () => {
           image_url: scene.selectedImage
         })
       })
+      
+      if (response.status === 402) {
+        // Insufficient credits
+        const errorData = await response.json();
+        setRequiredCredits(CREDIT_COSTS.PROMPT_GENERATION);
+        setShowInsufficientCreditsModal(true);
+        setScenes(prevScenes => 
+          prevScenes.map(s => 
+            s.id === sceneId ? { ...s, loadingVideoPrompt: false } : s
+          )
+        )
+        return;
+      }
       
       if (!response.ok) {
         throw new Error('영상 프롬프트 생성 중 오류가 발생했습니다.')
