@@ -231,14 +231,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Check if user is authenticated and has enough credits
       if (req.user) {
+        const currentCredits = await creditsService.getUserCredits(req.user.id);
+        const requiredCredits = CREDIT_COSTS.SCENE_PARSING;
+        
+        console.log(`크레딧 확인: 사용자=${req.user.id}, 현재 크레딧=${currentCredits}, 필요 크레딧=${requiredCredits}`);
+        
         const hasCredits = await creditsService.hasEnoughCredits(
           req.user.id, 
-          CREDIT_COSTS.SCENE_PARSING
+          requiredCredits
         );
         
         if (!hasCredits) {
           return res.status(402).json({ 
-            message: "Insufficient credits to perform this operation" 
+            success: false,
+            message: `크레딧이 부족합니다. 씬 파싱을 위해서는 ${requiredCredits}개의 크레딧이 필요하지만, 현재 ${currentCredits}개의 크레딧만 보유하고 있습니다.`,
+            requiredCredits: requiredCredits,
+            currentCredits: currentCredits || 0
           });
         }
       }
@@ -322,14 +330,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Check if user is authenticated and has enough credits
       if (req.user) {
+        const currentCredits = await creditsService.getUserCredits(req.user.id);
+        const requiredCredits = CREDIT_COSTS.PROMPT_GENERATION;
+        
+        console.log(`크레딧 확인: 사용자=${req.user.id}, 현재 크레딧=${currentCredits}, 필요 크레딧=${requiredCredits}`);
+        
         const hasCredits = await creditsService.hasEnoughCredits(
           req.user.id, 
-          CREDIT_COSTS.PROMPT_GENERATION
+          requiredCredits
         );
         
         if (!hasCredits) {
           return res.status(402).json({ 
-            message: "Insufficient credits to perform this operation" 
+            success: false,
+            message: `크레딧이 부족합니다. 이미지 프롬프트 생성을 위해서는 ${requiredCredits}개의 크레딧이 필요하지만, 현재 ${currentCredits}개의 크레딧만 보유하고 있습니다.`,
+            requiredCredits: requiredCredits,
+            currentCredits: currentCredits || 0
           });
         }
       }
@@ -687,10 +703,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // 영상 생성 API
-  app.post("/api/generate-video", async (req, res) => {
+  app.post("/api/generate-video", async (req: Request & { user?: any }, res) => {
     try {
       const data = generateVideoRequestSchema.parse(req.body);
       console.log("영상 생성 요청:", data);
+
+      // Check if user is authenticated and has enough credits
+      if (req.user) {
+        const currentCredits = await creditsService.getUserCredits(req.user.id);
+        const requiredCredits = CREDIT_COSTS.VIDEO_GENERATION;
+        
+        console.log(`크레딧 확인: 사용자=${req.user.id}, 현재 크레딧=${currentCredits}, 필요 크레딧=${requiredCredits}`);
+        
+        const hasCredits = await creditsService.hasEnoughCredits(
+          req.user.id, 
+          requiredCredits
+        );
+        
+        if (!hasCredits) {
+          return res.status(402).json({ 
+            success: false,
+            message: `크레딧이 부족합니다. 영상 생성을 위해서는 ${requiredCredits}개의 크레딧이 필요하지만, 현재 ${currentCredits}개의 크레딧만 보유하고 있습니다.`,
+            requiredCredits: requiredCredits,
+            currentCredits: currentCredits
+          });
+        }
+      }
 
       // 개발 모드이고 FAL_KEY가 없으면 모의 데이터 반환
       const isDevelopmentWithoutApiKey = 
@@ -707,6 +745,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
           videoPrompt: data.video_prompt,
           negativePrompt: data.negative_prompt || ""
         });
+        
+        // Deduct credits after successful request submission
+        if (req.user) {
+          console.log('Attempting to deduct credits for video generation...');
+          const newBalance = await creditsService.deductCredits(
+            req.user.id,
+            CREDIT_COSTS.VIDEO_GENERATION,
+            "Video generation"
+          );
+          console.log('Video generation credit deduction result:', newBalance);
+        }
         
         // 모의 응답 데이터 반환
         return res.json({ 
@@ -740,6 +789,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
           negativePrompt: data.negative_prompt || ""
         });
         
+        // Deduct credits after successful request submission
+        if (req.user) {
+          console.log('Attempting to deduct credits for video generation...');
+          const newBalance = await creditsService.deductCredits(
+            req.user.id,
+            CREDIT_COSTS.VIDEO_GENERATION,
+            "Video generation"
+          );
+          console.log('Video generation credit deduction result:', newBalance);
+        }
+        
         // 요청 ID 반환 (비동기 처리)
         res.json({ 
           request_id: result.request_id,
@@ -759,10 +819,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // 영상 상태 확인 API
-  app.get("/api/video-status/:request_id", async (req, res) => {
+  // 영상 상태 확인 API (POST 방식 - 클라이언트 호환성)
+  app.post("/api/check-video-status", async (req, res) => {
     try {
-      const { request_id } = req.params;
+      const { request_id } = req.body;
 
       if (!request_id) {
         return res.status(400).json({ 

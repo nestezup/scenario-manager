@@ -94,10 +94,29 @@ const SynopsisView: React.FC = () => {
     return Math.round((completedSteps / totalSteps) * 100)
   }
   
+  // 사전 크레딧 검증 함수
+  const checkCreditsBeforeOperation = (requiredCredits: number, operationName: string): boolean => {
+    if (!user) return false;
+    
+    const currentCredits = user.credits || 0;
+    if (currentCredits < requiredCredits) {
+      setRequiredCredits(requiredCredits);
+      setCurrentOperation(operationName);
+      setShowInsufficientCreditsModal(true);
+      return false;
+    }
+    return true;
+  };
+  
   // Handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (synopsis.trim()) {
+      // 사전 크레딧 검증
+      if (!checkCreditsBeforeOperation(CREDIT_COSTS.SCENE_PARSING, '씬 파싱')) {
+        return;
+      }
+      
       setStep('processing')
       
       try {
@@ -115,8 +134,9 @@ const SynopsisView: React.FC = () => {
         
         if (response.status === 402) {
           // Insufficient credits
-          setRequiredCredits(CREDIT_COSTS.SCENE_PARSING);
-          setCurrentOperation('scene parsing');
+          const errorData = await response.json();
+          setRequiredCredits(errorData.requiredCredits || CREDIT_COSTS.SCENE_PARSING);
+          setCurrentOperation('씬 파싱');
           setShowInsufficientCreditsModal(true);
           setStep('input');
           return;
@@ -164,6 +184,11 @@ const SynopsisView: React.FC = () => {
   
   // Generate image prompt for a scene
   const generateImagePrompt = async (sceneId: number) => {
+    // 사전 크레딧 검증
+    if (!checkCreditsBeforeOperation(CREDIT_COSTS.PROMPT_GENERATION, '이미지 프롬프트 생성')) {
+      return;
+    }
+    
     // Set loading state
     setScenes(prevScenes => 
       prevScenes.map(scene => 
@@ -188,8 +213,9 @@ const SynopsisView: React.FC = () => {
       
       if (response.status === 402) {
         // Insufficient credits
-        setRequiredCredits(CREDIT_COSTS.PROMPT_GENERATION);
-        setCurrentOperation('image prompt generation');
+        const errorData = await response.json();
+        setRequiredCredits(errorData.requiredCredits || CREDIT_COSTS.PROMPT_GENERATION);
+        setCurrentOperation('이미지 프롬프트 생성');
         setShowInsufficientCreditsModal(true);
         
         // Reset loading state
@@ -238,6 +264,11 @@ const SynopsisView: React.FC = () => {
     const scene = scenes.find(s => s.id === sceneId)
     if (!scene || !scene.imagePrompt) return
     
+    // 사전 크레딧 검증
+    if (!checkCreditsBeforeOperation(CREDIT_COSTS.IMAGE_GENERATION, '이미지 생성')) {
+      return;
+    }
+    
     // Set loading state
     setScenes(prevScenes => 
       prevScenes.map(s => 
@@ -259,8 +290,9 @@ const SynopsisView: React.FC = () => {
       
       if (response.status === 402) {
         // Insufficient credits
-        setRequiredCredits(CREDIT_COSTS.IMAGE_GENERATION);
-        setCurrentOperation('image generation');
+        const errorData = await response.json();
+        setRequiredCredits(errorData.requiredCredits || CREDIT_COSTS.IMAGE_GENERATION);
+        setCurrentOperation('이미지 생성');
         setShowInsufficientCreditsModal(true);
         
         // Reset loading state
@@ -326,6 +358,11 @@ const SynopsisView: React.FC = () => {
     const scene = scenes.find(s => s.id === sceneId)
     if (!scene || !scene.selectedImage) return
     
+    // 사전 크레딧 검증
+    if (!checkCreditsBeforeOperation(CREDIT_COSTS.PROMPT_GENERATION, '영상 프롬프트 생성')) {
+      return;
+    }
+    
     // Set loading state
     setScenes(prevScenes => 
       prevScenes.map(s => 
@@ -348,8 +385,8 @@ const SynopsisView: React.FC = () => {
       if (response.status === 402) {
         // Insufficient credits
         const errorData = await response.json();
-        setRequiredCredits(CREDIT_COSTS.PROMPT_GENERATION);
-        setCurrentOperation('video prompt generation');
+        setRequiredCredits(errorData.requiredCredits || CREDIT_COSTS.PROMPT_GENERATION);
+        setCurrentOperation('영상 프롬프트 생성');
         setShowInsufficientCreditsModal(true);
         
         // Reset loading state
@@ -399,6 +436,11 @@ const SynopsisView: React.FC = () => {
     const scene = scenes.find(s => s.id === sceneId)
     if (!scene || !scene.videoPrompt || !scene.selectedImage) return
     
+    // 사전 크레딧 검증
+    if (!checkCreditsBeforeOperation(CREDIT_COSTS.VIDEO_GENERATION, '영상 생성')) {
+      return;
+    }
+    
     // Set loading state - 명시적으로 모든 필드 초기화
     setScenes(prevScenes => 
       prevScenes.map(s => 
@@ -426,6 +468,26 @@ const SynopsisView: React.FC = () => {
           negative_prompt: scene.negativePrompt || ''
         })
       })
+      
+      if (response.status === 402) {
+        // Insufficient credits
+        const errorData = await response.json();
+        setRequiredCredits(errorData.requiredCredits || CREDIT_COSTS.VIDEO_GENERATION);
+        setCurrentOperation('영상 생성');
+        setShowInsufficientCreditsModal(true);
+        
+        // Reset loading state
+        setScenes(prevScenes => 
+          prevScenes.map(s => 
+            s.id === sceneId ? { 
+              ...s, 
+              loadingVideo: false,
+              videoStatus: 'failed'
+            } : s
+          )
+        )
+        return;
+      }
       
       if (!response.ok) {
         throw new Error('영상 생성 요청 중 오류가 발생했습니다.')
