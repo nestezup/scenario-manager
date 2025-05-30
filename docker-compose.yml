@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      # Add all your environment variables here
+      # - SUPABASE_URL=your_supabase_url
+      # - SUPABASE_SERVICE_KEY=your_supabase_key
+      # - SESSION_SECRET=your_session_secret
+      # - FAL_KEY=your_fal_key
+      # - REPLICATE_API_TOKEN=your_replicate_token
+    restart: unless-stopped 
