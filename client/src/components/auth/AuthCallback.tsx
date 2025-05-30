@@ -9,8 +9,8 @@ export default function AuthCallback() {
     // 서버에서 인증을 처리하므로 단순히 홈으로 리디렉션
     console.log('AuthCallback - Redirecting to home page');
     setTimeout(() => {
-      setLocation('/');
-    }, 1000);
+        setLocation('/');
+        }, 1000);
   }, [setLocation]);
 
   return (

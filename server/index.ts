@@ -174,7 +174,7 @@ app.use('/api', async (req: Request & { user?: any }, res: Response, next: NextF
               }
             ])
             .select();
-          
+            
           if (insertError) {
             console.error('Auth middleware - Failed to create user:', insertError);
             // 세션 클리어 및 인증 실패 응답
@@ -194,7 +194,7 @@ app.use('/api', async (req: Request & { user?: any }, res: Response, next: NextF
           
           console.log('Auth middleware - Successfully created user:', newUser[0]);
           req.user = newUser[0];
-          return next();
+            return next();
         } catch (createError) {
           console.error('Auth middleware - Exception during user creation:', createError);
           req.session.destroy(() => {
@@ -205,7 +205,7 @@ app.use('/api', async (req: Request & { user?: any }, res: Response, next: NextF
       } else {
         // 다른 데이터베이스 오류
         console.error('Auth middleware - Supabase error:', error);
-        // Clear invalid session
+      // Clear invalid session
         req.session.destroy(() => {
           res.status(401).json({ message: "Invalid session - Database error" });
         });
@@ -287,15 +287,15 @@ app.get("/auth/callback", async (req, res, next) => {
               if (data.success) {
                 // 인증 성공, 홈으로 리디렉션
                 window.location.href = '/';
-              } else {
+        } else {
                 // 인증 실패
                 window.location.href = '/auth/login?error=auth_failed';
-              }
+        }
             })
             .catch(error => {
               console.error('Authentication error:', error);
               window.location.href = '/auth/login?error=auth_failed';
-            });
+    });
           } else {
             // 토큰이 없으면 로그인 페이지로 리디렉션
             console.error('No access token found in URL hash');
@@ -431,7 +431,7 @@ app.use((req, res, next) => {
       let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
       if (capturedJsonResponse) {
         try {
-          logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
+        logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
         } catch (err) {
           logLine += ` :: [Error serializing response]`;
         }

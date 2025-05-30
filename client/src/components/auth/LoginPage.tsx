@@ -95,17 +95,17 @@ export default function LoginPage() {
       // URL 쿼리 파라미터에서 코드 확인 (매직 링크 흐름)
       const urlParams = new URLSearchParams(window.location.search);
       const code = urlParams.get('code');
-      
+        
       // URL 해시에서 토큰 확인 (OAuth 흐름)
-      const hashString = window.location.hash.substring(1);
-      const hashParams = new URLSearchParams(hashString);
-      const accessToken = hashParams.get('access_token');
-      const refreshToken = hashParams.get('refresh_token');
-      const type = hashParams.get('type');
-      
+        const hashString = window.location.hash.substring(1);
+        const hashParams = new URLSearchParams(hashString);
+        const accessToken = hashParams.get('access_token');
+        const refreshToken = hashParams.get('refresh_token');
+        const type = hashParams.get('type');
+        
       console.log('LoginPage - Auth parameters:', { 
         code: code ? 'Present (length: ' + code.length + ')' : 'Not found',
-        accessToken: accessToken ? 'Present (length: ' + accessToken.length + ')' : 'Not found', 
+          accessToken: accessToken ? 'Present (length: ' + accessToken.length + ')' : 'Not found',
         hash: window.location.hash ? 'Present' : 'Not found'
       });
       
@@ -124,42 +124,42 @@ export default function LoginPage() {
       }
       
       // 토큰이 있으면 처리
-      if (accessToken) {
+        if (accessToken) {
         setLoading(true);
-        console.log('LoginPage - Found access token in hash, attempting to authenticate');
-        
-        try {
-          // 토큰을 서버에 전달하여 세션 설정
-          const response = await fetch('/api/auth/session-from-token', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ 
-              access_token: accessToken,
-              refresh_token: refreshToken,
-              type
-            }),
-            credentials: 'include' // 세션 쿠키 포함
-          });
+          console.log('LoginPage - Found access token in hash, attempting to authenticate');
           
-          const responseData = await response.json();
-          console.log('LoginPage - Authentication response:', responseData);
-          
-          if (!response.ok) {
-            throw new Error(responseData.message || 'Failed to authenticate');
-          }
-          
-          console.log('LoginPage - Successfully authenticated with token');
-          
-          // 인증 성공 후 URL 해시 제거 (클린업)
-          window.history.replaceState(null, '', window.location.pathname);
-          
-          // 메인 페이지로 리디렉션
-          setLocation('/');
-        } catch (err: any) {
-          console.error('LoginPage - Token authentication error:', err);
-          setError('Authentication failed: ' + err.message);
+          try {
+            // 토큰을 서버에 전달하여 세션 설정
+            const response = await fetch('/api/auth/session-from-token', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ 
+                access_token: accessToken,
+                refresh_token: refreshToken,
+                type
+              }),
+              credentials: 'include' // 세션 쿠키 포함
+            });
+            
+            const responseData = await response.json();
+            console.log('LoginPage - Authentication response:', responseData);
+            
+            if (!response.ok) {
+              throw new Error(responseData.message || 'Failed to authenticate');
+            }
+            
+            console.log('LoginPage - Successfully authenticated with token');
+            
+            // 인증 성공 후 URL 해시 제거 (클린업)
+            window.history.replaceState(null, '', window.location.pathname);
+            
+            // 메인 페이지로 리디렉션
+            setLocation('/');
+          } catch (err: any) {
+            console.error('LoginPage - Token authentication error:', err);
+            setError('Authentication failed: ' + err.message);
           setLoading(false);
         }
       }
@@ -211,7 +211,7 @@ export default function LoginPage() {
       if (data.message && data.message.includes('recently sent')) {
         setSuccess('A magic link was recently sent to this email. Please check your inbox or wait a moment before trying again.');
       } else {
-        setSuccess('Magic link sent! Please check your email.');
+      setSuccess('Magic link sent! Please check your email.');
       }
       
       // 사용자가 실수로 두 번 클릭하는 것을 방지하기 위해

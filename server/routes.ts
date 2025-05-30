@@ -1044,19 +1044,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.log('Decoded payload string (first 100 chars):', payloadStr.substring(0, 100));
           
           try {
-            const payload = JSON.parse(payloadStr);
-            console.log('Token payload parsed successfully:', payload);
-            
-            // Supabase는 sub 또는 user_id에 사용자 ID를 저장
+          const payload = JSON.parse(payloadStr);
+          console.log('Token payload parsed successfully:', payload);
+          
+          // Supabase는 sub 또는 user_id에 사용자 ID를 저장
             userId = payload.sub || payload.user_id || payload.id;
-            email = payload.email;
-            
-            console.log('Extracted user ID from token:', userId);
-            console.log('Extracted email from token:', email);
-            
-            if (!userId) {
-              console.error('User ID not found in token payload');
-              throw new Error('User ID not found in token');
+          email = payload.email;
+          
+          console.log('Extracted user ID from token:', userId);
+          console.log('Extracted email from token:', email);
+        
+        if (!userId) {
+          console.error('User ID not found in token payload');
+          throw new Error('User ID not found in token');
             }
           } catch (jsonError) {
             console.error('JSON parse error:', jsonError);
@@ -1099,20 +1099,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
             console.log('User not found in database, creating new user with ID:', userId);
             
             try {
-              const { data: newUser, error: insertError } = await supabase
-                .from('users')
-                .insert([
-                  { 
-                    id: userId, 
-                    email: email,
+            const { data: newUser, error: insertError } = await supabase
+              .from('users')
+              .insert([
+                { 
+                  id: userId, 
+                  email: email,
                     credits: 100, // 초기 크레딧
-                    created_at: new Date().toISOString(),
-                    updated_at: new Date().toISOString()
-                  }
-                ])
-                .select();
-                
-              if (insertError) {
+                  created_at: new Date().toISOString(),
+                  updated_at: new Date().toISOString()
+                }
+              ])
+              .select();
+              
+            if (insertError) {
                 console.error('Error creating new user in database:', insertError);
                 console.error('Insert error details:', {
                   code: insertError.code,
@@ -1120,7 +1120,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   details: insertError.details,
                   hint: insertError.hint
                 });
-              } else {
+            } else {
                 console.log('Successfully created new user in database:', newUser);
               }
             } catch (insertErr) {
