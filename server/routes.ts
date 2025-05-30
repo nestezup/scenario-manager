@@ -131,90 +131,172 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Get current user
   app.get("/api/me", async (req: Request & { user?: any }, res) => {
-    console.log("=== /api/me ENDPOINT REACHED ===");
-    console.log("GET /api/me - 세션 ID:", req.session.id);
-    console.log("GET /api/me - 세션 사용자 ID:", req.session.userId);
-    console.log("GET /api/me - Request headers:", req.headers);
-    
-    // Authorization 헤더에서 토큰 확인
-    const authHeader = req.headers.authorization;
-    let userId = req.user?.id || req.session.userId;
-    let bearerToken = null;
-    
-    // Bearer 토큰이 있으면 사용
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-      bearerToken = authHeader.substring(7);
-      console.log("Authorization 헤더에서 토큰 추출:", bearerToken ? bearerToken.substring(0, 20) + "..." : "없음");
+    try {
+      console.log("=== /api/me ENDPOINT REACHED ===");
+      console.log("GET /api/me - 세션 ID:", req.session?.id || 'No session ID');
+      console.log("GET /api/me - 세션 사용자 ID:", req.session?.userId || 'No user ID');
+      console.log("GET /api/me - Request headers:", req.headers);
       
-      // 토큰에서 사용자 ID 추출 (JWT 디코딩)
-      try {
-        // JWT 디코딩 로직
-        const tokenParts = bearerToken.split('.');
-        if (tokenParts.length === 3) {
-          const base64Payload = tokenParts[1].replace(/-/g, '+').replace(/_/g, '/');
-          const paddedBase64Payload = base64Payload.padEnd(base64Payload.length + (4 - (base64Payload.length % 4)) % 4, '=');
+      // Authorization 헤더에서 토큰 확인
+      const authHeader = req.headers.authorization;
+      let userId = req.user?.id || req.session?.userId;
+      let bearerToken = null;
+      
+      // 인증 정보가 없으면 비인증 상태로 응답
+      if (!userId && !authHeader) {
+        console.log("No userId in session and no Authorization header, returning not authenticated");
+        return res.status(401).json({ 
+          success: false,
+          message: "Not authenticated" 
+        });
+      }
+      
+      // Bearer 토큰이 있으면 사용
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        try {
+          bearerToken = authHeader.substring(7);
+          console.log("Authorization 헤더에서 토큰 추출:", bearerToken ? bearerToken.substring(0, 20) + "..." : "없음");
           
+          // 토큰에서 사용자 ID 추출 (JWT 디코딩)
           try {
-            const payloadBuffer = Buffer.from(paddedBase64Payload, 'base64');
-            const payloadStr = payloadBuffer.toString();
-            const payload = JSON.parse(payloadStr);
-            
-            // Supabase는 sub 또는 user_id에 사용자 ID를 저장
-            const tokenUserId = payload.sub || payload.user_id || payload.id;
-            if (tokenUserId) {
-              console.log("토큰에서 추출한 사용자 ID:", tokenUserId);
-              userId = tokenUserId;
+            // JWT 디코딩 로직
+            const tokenParts = bearerToken.split('.');
+            if (tokenParts.length === 3) {
+              const base64Payload = tokenParts[1].replace(/-/g, '+').replace(/_/g, '/');
+              const paddedBase64Payload = base64Payload.padEnd(base64Payload.length + (4 - (base64Payload.length % 4)) % 4, '=');
+              
+              try {
+                const payloadBuffer = Buffer.from(paddedBase64Payload, 'base64');
+                const payloadStr = payloadBuffer.toString();
+                const payload = JSON.parse(payloadStr);
+                
+                // Supabase는 sub 또는 user_id에 사용자 ID를 저장
+                const tokenUserId = payload.sub || payload.user_id || payload.id;
+                if (tokenUserId) {
+                  console.log("토큰에서 추출한 사용자 ID:", tokenUserId);
+                  userId = tokenUserId;
+                }
+              } catch (err) {
+                console.error("토큰 페이로드 파싱 오류:", err);
+              }
             }
           } catch (err) {
-            console.error("토큰 페이로드 파싱 오류:", err);
+            console.error("토큰 디코딩 오류:", err);
           }
+        } catch (tokenError) {
+          console.error("Token extraction error:", tokenError);
+          // 토큰 처리 중 오류가 발생해도 계속 진행 (세션 ID 사용)
         }
-      } catch (err) {
-        console.error("토큰 디코딩 오류:", err);
       }
-    }
 
-    if (!userId) {
-      return res.status(401).json({ message: "Not authenticated" });
-    }
-    
-    let email = req.user?.email || '';
-    let credits = 0;
-    
-    // 사용자 정보를 DB에서 조회
-    try {
-      const { data: userData, error } = await supabase
-        .from('users')
-        .select('*')
-        .eq('id', userId)
-        .single();
-        
-      if (error) {
-        console.error('Error fetching user from DB in /api/me:', error);
-        return res.status(401).json({ message: "User not found in database" });
+      if (!userId) {
+        console.log("Could not determine userId from session or token");
+        return res.status(401).json({ 
+          success: false,
+          message: "Not authenticated" 
+        });
       }
       
-      if (userData) {
-        // req.user 설정 (미들웨어가 처리하지 못한 경우를 위해)
-        req.user = userData;
-        userId = userData.id;
-        email = userData.email;
-      } else {
-        return res.status(401).json({ message: "User not found" });
+      console.log("Using userId for /api/me:", userId);
+      
+      let email = req.user?.email || '';
+      let credits = 0;
+      
+      // 사용자 정보를 DB에서 조회
+      try {
+        const { data: userData, error } = await supabase
+          .from('users')
+          .select('*')
+          .eq('id', userId)
+          .single();
+          
+        if (error) {
+          console.error('Error fetching user from DB in /api/me:', error);
+          
+          // 사용자가 존재하지 않는 경우 새로 생성 시도
+          if (error.code === 'PGRST116') {
+            console.log("User not found, attempting to create user with ID:", userId);
+            
+            try {
+              const { data: newUser, error: insertError } = await supabase
+                .from('users')
+                .insert([
+                  { 
+                    id: userId, 
+                    email: email || `user-${userId.substring(0, 8)}@example.com`,
+                    credits: 100, // 초기 크레딧
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString()
+                  }
+                ])
+                .select();
+                
+              if (insertError) {
+                console.error('Failed to create user:', insertError);
+                return res.status(500).json({ 
+                  success: false,
+                  message: "Failed to create user record" 
+                });
+              }
+              
+              if (newUser && newUser.length > 0) {
+                console.log("Created new user:", newUser[0]);
+                req.user = newUser[0];
+                userId = newUser[0].id;
+                email = newUser[0].email;
+                credits = newUser[0].credits || 0;
+              }
+            } catch (createError) {
+              console.error("Error creating user:", createError);
+              return res.status(500).json({ 
+                success: false,
+                message: "Error creating user" 
+              });
+            }
+          } else {
+            // 다른 DB 오류
+            return res.status(500).json({ 
+              success: false,
+              message: "Database error" 
+            });
+          }
+        } else if (userData) {
+          // 사용자가 존재하면 정보 설정
+          req.user = userData;
+          userId = userData.id;
+          email = userData.email;
+          
+          // Get user's credit balance
+          try {
+            credits = await creditsService.getUserCredits(userId) || 0;
+          } catch (creditError) {
+            console.error("Error fetching credits:", creditError);
+            credits = 0; // 오류 시 기본값
+          }
+        }
+        
+        // 최종 응답
+        return res.json({
+          success: true,
+          id: userId,
+          email: email,
+          credits: credits
+        });
+        
+      } catch (dbError) {
+        console.error('Database error in /api/me:', dbError);
+        return res.status(500).json({ 
+          success: false,
+          message: "Server error fetching user data" 
+        });
       }
-    } catch (dbError) {
-      console.error('Database error in /api/me:', dbError);
-      return res.status(500).json({ message: "Server error fetching user data" });
+    } catch (generalError) {
+      console.error("General error in /api/me:", generalError);
+      return res.status(500).json({ 
+        success: false,
+        message: "Server error" 
+      });
     }
-    
-    // Get user's credit balance
-    credits = await creditsService.getUserCredits(userId) || 0;
-    
-    res.json({
-      id: userId,
-      email: email,
-      credits: credits
-    });
   });
   
   // Logout
