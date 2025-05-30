@@ -38,11 +38,14 @@ app.use(cors({
     // Allow requests with no origin (like mobile apps, curl, postman)
     if (!origin) return callback(null, true);
     
-    // Allow any localhost port and the configured APP_URL
+    // Allow localhost, configured APP_URL, and Vercel domains
     if (origin.match(/^https?:\/\/localhost:[0-9]+$/) || 
-        origin === process.env.APP_URL) {
+        origin === process.env.APP_URL ||
+        origin.match(/^https:\/\/.*\.vercel\.app$/) ||
+        origin.match(/^https:\/\/scenario-manager.*\.vercel\.app$/)) {
       return callback(null, true);
     } else {
+      console.log('CORS blocked for origin:', origin);
       callback(null, false);
     }
   },
@@ -60,12 +63,12 @@ app.use(express.urlencoded({ extended: false }));
 // Setup session middleware with improved settings
 const sessionConfig = {
   secret: process.env.SESSION_SECRET || 'scenario-manager-secret-key',
-  resave: true, // 모든 요청에서 세션을 다시 저장하도록 변경
-  saveUninitialized: true, // 초기화되지 않은 세션도 저장
-  name: 'scenario_sid', // 세션 쿠키 이름 변경
+  resave: true,
+  saveUninitialized: true,
+  name: 'scenario_sid',
   cookie: { 
-    secure: false, // 개발 환경에서는 false로 설정
-    sameSite: 'lax' as const, // 타입 캐스팅 추가
+    secure: process.env.NODE_ENV === 'production', // 프로덕션에서만 secure 활성화
+    sameSite: (process.env.NODE_ENV === 'production' ? 'none' : 'lax') as 'none' | 'lax' | 'strict', // 타입 명시
     maxAge: 24 * 60 * 60 * 1000, // 1 day
     httpOnly: true,
     path: '/'

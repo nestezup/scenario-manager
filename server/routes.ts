@@ -1010,10 +1010,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       console.log("POST /api/auth/session-from-token - Request body:", req.body);
       console.log("Initial session ID:", req.session?.id || 'No session ID');
+      console.log("Environment:", process.env.NODE_ENV);
+      console.log("Headers:", JSON.stringify(req.headers));
       
       const { access_token, refresh_token, type } = req.body;
       
       if (!access_token) {
+        console.log("Missing access_token in request body");
         return res.status(400).json({ 
           success: false, 
           message: "Access token is required" 
