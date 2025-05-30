@@ -143,6 +143,13 @@ export default function LoginPage() {
               credentials: 'include' // 세션 쿠키 포함
             });
             
+            // 응답이 JSON이 아닐 경우 처리
+            const contentType = response.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')) {
+              console.error('LoginPage - Non-JSON response received:', await response.text());
+              throw new Error('Server returned non-JSON response. Please try again later.');
+            }
+            
             const responseData = await response.json();
             console.log('LoginPage - Authentication response:', responseData);
             
@@ -160,9 +167,9 @@ export default function LoginPage() {
           } catch (err: any) {
             console.error('LoginPage - Token authentication error:', err);
             setError('Authentication failed: ' + err.message);
-          setLoading(false);
+            setLoading(false);
+          }
         }
-      }
     };
     
     checkAuthParams();

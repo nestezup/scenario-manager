@@ -1,4 +1,4 @@
-import type { Express, Request, Response } from "express";
+import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import fetch from "node-fetch";
@@ -59,6 +59,18 @@ const magicLinkRateLimit = new Map<string, number>();
 const RATE_LIMIT_DURATION = 60000; // 60 seconds
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Ensure JSON responses for API routes
+  app.use('/api', (err: any, req: Request, res: Response, next: NextFunction) => {
+    if (err) {
+      console.error('API error middleware caught:', err);
+      return res.status(500).json({ 
+        success: false, 
+        message: err.message || 'Server error' 
+      });
+    }
+    next();
+  });
+
   // Authentication Routes
   
   // Magic link login
