@@ -182,6 +182,33 @@ const SynopsisView: React.FC = () => {
     )
   }
   
+  // Update image prompt
+  const updateImagePrompt = (sceneId: number, newPrompt: string) => {
+    setScenes(prevScenes => 
+      prevScenes.map(scene => 
+        scene.id === sceneId ? { ...scene, imagePrompt: newPrompt } : scene
+      )
+    )
+  }
+  
+  // Update video prompt
+  const updateVideoPrompt = (sceneId: number, newVideoPrompt: string) => {
+    setScenes(prevScenes => 
+      prevScenes.map(scene => 
+        scene.id === sceneId ? { ...scene, videoPrompt: newVideoPrompt } : scene
+      )
+    )
+  }
+  
+  // Update negative prompt
+  const updateNegativePrompt = (sceneId: number, newNegativePrompt: string) => {
+    setScenes(prevScenes => 
+      prevScenes.map(scene => 
+        scene.id === sceneId ? { ...scene, negativePrompt: newNegativePrompt } : scene
+      )
+    )
+  }
+  
   // Generate image prompt for a scene
   const generateImagePrompt = async (sceneId: number) => {
     // 사전 크레딧 검증
@@ -733,6 +760,9 @@ const SynopsisView: React.FC = () => {
               onSelectImage={selectImage}
               onGenerateVideoPrompt={generateVideoPrompt}
               onGenerateVideo={generateVideo}
+              onUpdateImagePrompt={updateImagePrompt}
+              onUpdateVideoPrompt={updateVideoPrompt}
+              onUpdateNegativePrompt={updateNegativePrompt}
             />
             
             <div className="flex justify-between mt-6">

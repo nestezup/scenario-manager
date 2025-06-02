@@ -9,3 +9,6 @@ vite.config.ts.*
 .env.development
 .env.production
 .env.example
+
+# Local Netlify folder
+.netlify

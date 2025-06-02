@@ -10,6 +10,9 @@ interface SceneCardProps {
   onSelectImage: (sceneId: number, imageIndex: number) => void;
   onGenerateVideoPrompt: (sceneId: number) => Promise<void>;
   onGenerateVideo: (sceneId: number) => Promise<void>;
+  onUpdateImagePrompt?: (sceneId: number, newPrompt: string) => void;
+  onUpdateVideoPrompt?: (sceneId: number, newVideoPrompt: string) => void;
+  onUpdateNegativePrompt?: (sceneId: number, newNegativePrompt: string) => void;
 }
 
 const SceneCard: React.FC<SceneCardProps> = ({ 
@@ -19,13 +22,22 @@ const SceneCard: React.FC<SceneCardProps> = ({
   onGenerateImages, 
   onSelectImage,
   onGenerateVideoPrompt,
-  onGenerateVideo
+  onGenerateVideo,
+  onUpdateImagePrompt,
+  onUpdateVideoPrompt,
+  onUpdateNegativePrompt
 }) => {
   const [text, setText] = useState(scene.text)
+  const [imagePrompt, setImagePrompt] = useState(scene.imagePrompt || '')
+  const [videoPrompt, setVideoPrompt] = useState(scene.videoPrompt || '')
+  const [negativePrompt, setNegativePrompt] = useState(scene.negativePrompt || '')
   
   // Update local state when scene changes
   useEffect(() => {
     setText(scene.text)
+    setImagePrompt(scene.imagePrompt || '')
+    setVideoPrompt(scene.videoPrompt || '')
+    setNegativePrompt(scene.negativePrompt || '')
   }, [scene])
   
   // Update store when text is done editing
@@ -35,6 +47,57 @@ const SceneCard: React.FC<SceneCardProps> = ({
   
   const handleTextBlur = () => {
     onUpdateText(scene.id, text)
+  }
+
+  const handleImagePromptChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setImagePrompt(e.target.value)
+  }
+
+  const handleImagePromptBlur = () => {
+    if (onUpdateImagePrompt) {
+      onUpdateImagePrompt(scene.id, imagePrompt)
+    }
+  }
+
+  const handleVideoPromptChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setVideoPrompt(e.target.value)
+  }
+
+  const handleVideoPromptBlur = () => {
+    if (onUpdateVideoPrompt) {
+      onUpdateVideoPrompt(scene.id, videoPrompt)
+    }
+  }
+
+  const handleNegativePromptChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setNegativePrompt(e.target.value)
+  }
+
+  const handleNegativePromptBlur = () => {
+    if (onUpdateNegativePrompt) {
+      onUpdateNegativePrompt(scene.id, negativePrompt)
+    }
+  }
+
+  // 영상 다운로드 함수
+  const downloadVideo = async (videoUrl: string, fileName: string) => {
+    try {
+      const response = await fetch(videoUrl)
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.style.display = 'none'
+      a.href = url
+      a.download = fileName
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+    } catch (error) {
+      console.error('Download failed:', error)
+      // 다운로드가 실패한 경우 새 탭에서 열기
+      window.open(videoUrl, '_blank')
+    }
   }
 
   // 씬 타입 캐스팅
@@ -61,31 +124,29 @@ const SceneCard: React.FC<SceneCardProps> = ({
                 className="w-full h-full object-contain"
               />
             </div>
-            <a 
-              href={sceneWithVideo.videoUrl} 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-30 hover:bg-opacity-40"
+            <div 
+              onClick={() => sceneWithVideo.videoUrl && window.open(sceneWithVideo.videoUrl, '_blank')}
+              className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-30 hover:bg-opacity-40 cursor-pointer"
             >
               <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center">
                 <svg className="w-5 h-5 text-blue-500" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
                   <path d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z"></path>
                 </svg>
               </div>
-            </a>
+            </div>
           </div>
           <div>
             <div className="font-medium">세로형 영상 (9:16)</div>
-            <a
-              href={sceneWithVideo.videoUrl || '#'} 
-              download={`scene_${scene.id}_video.mp4`}
+            <button
+              onClick={() => sceneWithVideo.videoUrl && downloadVideo(sceneWithVideo.videoUrl, `scene_${scene.id}_video.mp4`)}
               className="text-blue-500 text-sm hover:underline flex items-center mt-1"
+              disabled={!sceneWithVideo.videoUrl}
             >
               <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
               </svg>
               다운로드
-            </a>
+            </button>
           </div>
         </div>
       )
@@ -143,9 +204,13 @@ const SceneCard: React.FC<SceneCardProps> = ({
           {scene.loadingImagePrompt ? (
             <div className="py-2 text-sm text-gray-500">프롬프트 생성 중...</div>
           ) : scene.imagePrompt ? (
-            <div className="bg-gray-50 p-3 rounded border border-gray-100">
-              {scene.imagePrompt}
-            </div>
+            <textarea
+              value={imagePrompt}
+              onChange={handleImagePromptChange}
+              onBlur={handleImagePromptBlur}
+              className="w-full border border-gray-300 rounded-md p-3 h-20 focus:border-indigo-500 focus:ring-indigo-500 bg-gray-50"
+              placeholder="이미지 프롬프트를 수정할 수 있습니다"
+            />
           ) : (
             <div className="py-2 text-sm text-gray-500">씬 내용을 입력한 후 이미지 프롬프트를 생성하세요.</div>
           )}
@@ -225,18 +290,24 @@ const SceneCard: React.FC<SceneCardProps> = ({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">영상 프롬프트</label>
-                <div className="bg-gray-50 p-3 rounded border border-gray-100 min-h-[100px]">
-                  {scene.videoPrompt}
-                </div>
+                <textarea
+                  value={videoPrompt}
+                  onChange={handleVideoPromptChange}
+                  onBlur={handleVideoPromptBlur}
+                  className="w-full border border-gray-300 rounded-md p-3 h-24 focus:border-indigo-500 focus:ring-indigo-500 bg-gray-50"
+                  placeholder="영상 프롬프트를 수정할 수 있습니다"
+                />
               </div>
-              {scene.negativePrompt && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Negative Prompt</label>
-                  <div className="bg-gray-50 p-3 rounded border border-gray-100 min-h-[100px]">
-                    {scene.negativePrompt}
-                  </div>
-                </div>
-              )}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Negative Prompt</label>
+                <textarea
+                  value={negativePrompt}
+                  onChange={handleNegativePromptChange}
+                  onBlur={handleNegativePromptBlur}
+                  className="w-full border border-gray-300 rounded-md p-3 h-24 focus:border-indigo-500 focus:ring-indigo-500 bg-gray-50"
+                  placeholder="제외할 내용을 입력하세요"
+                />
+              </div>
             </div>
           ) : (
             <div className="py-2 text-sm text-gray-500">이미지를 선택한 후 영상 프롬프트를 생성하세요.</div>
