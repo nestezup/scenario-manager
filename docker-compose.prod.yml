@@ -4,18 +4,44 @@ services:
   app:
     image: nestezup/scenario-manager:latest
     container_name: scenario-manager
+    platform: linux/amd64  # 리눅스 서버 호환성 보장
     restart: always
     ports:
-      - "3000:3000"
+      - "3010:3000"
     env_file:
       - .env.production
     environment:
       - NODE_ENV=production
-    # 필요한 경우 볼륨 추가
-    # volumes:
-    #   - ./uploads:/app/uploads
+    volumes:
+      # 로그 파일을 위한 볼륨
+      - ./logs:/app/logs
+      # 업로드 파일을 위한 볼륨 (필요시)
+      - ./uploads:/app/uploads
+      # 데이터 백업을 위한 볼륨 (필요시)
+      - ./backups:/app/backups
+    healthcheck:
+      test: ["CMD", "node", "--version"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
     logging:
       driver: "json-file"
       options:
-        max-size: "100m"
-        max-file: "3" 
+        max-size: "50m"
+        max-file: "5"
+    networks:
+      - prod-network
+    # 리소스 제한 (선택사항)
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '0.5'
+        reservations:
+          memory: 512M
+          cpus: '0.25'
+
+networks:
+  prod-network:
+    driver: bridge 

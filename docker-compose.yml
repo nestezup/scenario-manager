@@ -2,15 +2,59 @@ version: '3.8'
 
 services:
   app:
-    build: .
+    build: 
+      context: .
+      dockerfile: Dockerfile
+      platforms:
+        - linux/amd64
+    container_name: scenario-manager-app
     ports:
-      - "3000:3000"
+      - "3010:3000"
     environment:
       - NODE_ENV=production
-      # Add all your environment variables here
-      # - SUPABASE_URL=your_supabase_url
-      # - SUPABASE_SERVICE_KEY=your_supabase_key
-      # - SESSION_SECRET=your_session_secret
-      # - FAL_KEY=your_fal_key
-      # - REPLICATE_API_TOKEN=your_replicate_token
-    restart: unless-stopped 
+      # Required environment variables - Set these values
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}
+      - SESSION_SECRET=${SESSION_SECRET}
+      - FAL_KEY=${FAL_KEY}
+      - REPLICATE_API_TOKEN=${REPLICATE_API_TOKEN}
+      - DATABASE_URL=${DATABASE_URL}
+    volumes:
+      # 로그 파일을 위한 볼륨 (선택사항)
+      - ./logs:/app/logs
+      # 업로드 파일을 위한 볼륨 (필요시)
+      - ./uploads:/app/uploads
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "--version"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - app-network
+
+  # 선택사항: Nginx 리버스 프록시 (HTTPS, 로드밸런싱)
+  # nginx:
+  #   image: nginx:alpine
+  #   container_name: scenario-manager-nginx
+  #   ports:
+  #     - "80:80"
+  #     - "443:443"
+  #   volumes:
+  #     - ./nginx.conf:/etc/nginx/nginx.conf
+  #     - ./ssl:/etc/nginx/ssl
+  #   depends_on:
+  #     - app
+  #   restart: unless-stopped
+  #   networks:
+  #     - app-network
+
+networks:
+  app-network:
+    driver: bridge 
