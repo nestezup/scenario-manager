@@ -18,8 +18,8 @@ COPY . .
 # Build the application
 RUN npm run build
 
-# 프로덕션 의존성만 재설치 (최적화)
-RUN npm ci --only=production && npm cache clean --force
+# npm cache만 정리 (의존성은 유지)
+RUN npm cache clean --force
 
 # 비특권 사용자 생성 및 권한 설정
 RUN addgroup -g 1001 -S nodejs
