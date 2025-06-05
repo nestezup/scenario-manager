@@ -65,6 +65,11 @@ const SynopsisView: React.FC = () => {
   const [scenes, setScenes] = useState<Scene[]>([])
   const [activeSceneIndex, setActiveSceneIndex] = useState<number | null>(null)
   
+  // State for editing prompts
+  const [editingImagePrompt, setEditingImagePrompt] = useState<{[key: number]: string}>({})
+  const [editingVideoPrompt, setEditingVideoPrompt] = useState<{[key: number]: string}>({})
+  const [editingNegativePrompt, setEditingNegativePrompt] = useState<{[key: number]: string}>({})
+  
   // Progress percentage calculation
   const getProgressPercentage = () => {
     if (scenes.length === 0) return 0
@@ -162,6 +167,82 @@ const SynopsisView: React.FC = () => {
       )
     )
   }
+  
+  // Update image prompt function
+  const updateImagePrompt = (sceneId: number, newPrompt: string) => {
+    setScenes(prevScenes => 
+      prevScenes.map(scene => 
+        scene.id === sceneId ? { ...scene, imagePrompt: newPrompt } : scene
+      )
+    )
+  }
+  
+  // Update video prompt function  
+  const updateVideoPrompt = (sceneId: number, newVideoPrompt: string) => {
+    setScenes(prevScenes => 
+      prevScenes.map(scene => 
+        scene.id === sceneId ? { ...scene, videoPrompt: newVideoPrompt } : scene
+      )
+    )
+  }
+  
+  // Update negative prompt function
+  const updateNegativePrompt = (sceneId: number, newNegativePrompt: string) => {
+    setScenes(prevScenes => 
+      prevScenes.map(scene => 
+        scene.id === sceneId ? { ...scene, negativePrompt: newNegativePrompt } : scene
+      )
+    )
+  }
+  
+  // Handle prompt editing
+  const handleImagePromptChange = (sceneId: number, value: string) => {
+    setEditingImagePrompt(prev => ({ ...prev, [sceneId]: value }))
+  }
+  
+  const handleImagePromptBlur = (sceneId: number) => {
+    const value = editingImagePrompt[sceneId]
+    if (value !== undefined) {
+      updateImagePrompt(sceneId, value)
+    }
+  }
+  
+  const handleVideoPromptChange = (sceneId: number, value: string) => {
+    setEditingVideoPrompt(prev => ({ ...prev, [sceneId]: value }))
+  }
+  
+  const handleVideoPromptBlur = (sceneId: number) => {
+    const value = editingVideoPrompt[sceneId]
+    if (value !== undefined) {
+      updateVideoPrompt(sceneId, value)
+    }
+  }
+  
+  const handleNegativePromptChange = (sceneId: number, value: string) => {
+    setEditingNegativePrompt(prev => ({ ...prev, [sceneId]: value }))
+  }
+  
+  const handleNegativePromptBlur = (sceneId: number) => {
+    const value = editingNegativePrompt[sceneId]
+    if (value !== undefined) {
+      updateNegativePrompt(sceneId, value)
+    }
+  }
+  
+  // Initialize editing state when scene prompts change
+  useEffect(() => {
+    scenes.forEach(scene => {
+      if (scene.imagePrompt && editingImagePrompt[scene.id] === undefined) {
+        setEditingImagePrompt(prev => ({ ...prev, [scene.id]: scene.imagePrompt || '' }))
+      }
+      if (scene.videoPrompt && editingVideoPrompt[scene.id] === undefined) {
+        setEditingVideoPrompt(prev => ({ ...prev, [scene.id]: scene.videoPrompt || '' }))
+      }
+      if (scene.negativePrompt && editingNegativePrompt[scene.id] === undefined) {
+        setEditingNegativePrompt(prev => ({ ...prev, [scene.id]: scene.negativePrompt || '' }))
+      }
+    })
+  }, [scenes])
   
   // Generate image prompt for a scene
   const generateImagePrompt = async (sceneId: number) => {
@@ -802,9 +883,13 @@ const SynopsisView: React.FC = () => {
                       
                       {/* Prompt Display */}
                       {scenes[activeSceneIndex].imagePrompt && (
-                        <div className="bg-gray-50 p-3 rounded-md">
-                          <p className="text-sm text-gray-700 font-mono">{scenes[activeSceneIndex].imagePrompt}</p>
-                        </div>
+                        <textarea
+                          value={editingImagePrompt[scenes[activeSceneIndex].id] || scenes[activeSceneIndex].imagePrompt}
+                          onChange={(e) => handleImagePromptChange(scenes[activeSceneIndex].id, e.target.value)}
+                          onBlur={() => handleImagePromptBlur(scenes[activeSceneIndex].id)}
+                          className="w-full border border-gray-300 rounded-md p-3 h-20 focus:border-blue-500 focus:ring-blue-500 bg-gray-50 text-sm font-mono"
+                          placeholder="이미지 프롬프트를 수정할 수 있습니다"
+                        />
                       )}
                     </div>
                     
@@ -881,15 +966,23 @@ const SynopsisView: React.FC = () => {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">영상 프롬프트</label>
-                            <div className="bg-gray-50 p-3 rounded-md h-32 overflow-y-auto">
-                              <p className="text-sm text-gray-700 font-mono">{scenes[activeSceneIndex].videoPrompt}</p>
-                            </div>
+                            <textarea
+                              value={editingVideoPrompt[scenes[activeSceneIndex].id] || scenes[activeSceneIndex].videoPrompt}
+                              onChange={(e) => handleVideoPromptChange(scenes[activeSceneIndex].id, e.target.value)}
+                              onBlur={() => handleVideoPromptBlur(scenes[activeSceneIndex].id)}
+                              className="w-full border border-gray-300 rounded-md p-3 h-32 focus:border-blue-500 focus:ring-blue-500 bg-gray-50 text-sm font-mono"
+                              placeholder="영상 프롬프트를 수정할 수 있습니다"
+                            />
                           </div>
                           <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Negative Prompt</label>
-                            <div className="bg-gray-50 p-3 rounded-md h-32 overflow-y-auto">
-                              <p className="text-sm text-gray-700 font-mono">{scenes[activeSceneIndex].negativePrompt}</p>
-                            </div>
+                            <textarea
+                              value={editingNegativePrompt[scenes[activeSceneIndex].id] || scenes[activeSceneIndex].negativePrompt}
+                              onChange={(e) => handleNegativePromptChange(scenes[activeSceneIndex].id, e.target.value)}
+                              onBlur={() => handleNegativePromptBlur(scenes[activeSceneIndex].id)}
+                              className="w-full border border-gray-300 rounded-md p-3 h-32 focus:border-blue-500 focus:ring-blue-500 bg-gray-50 text-sm font-mono"
+                              placeholder="제외할 내용을 입력하세요"
+                            />
                           </div>
                         </div>
                       )}
